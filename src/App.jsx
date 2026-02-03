@@ -22,7 +22,7 @@ function App() {
   }
 
   if (step === "ngoFeed") {
-    return <NGOFeed onAccept={() => setStep("dashboard")} />;
+    return <NGOFeed />;
   }
 
   return <ImpactDashboard />;
