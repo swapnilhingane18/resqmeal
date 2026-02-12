@@ -20,8 +20,6 @@ const RegisterPage = () => {
         const success = await registerUser(data.name, data.email, data.password, data.role);
         if (success) {
             navigate('/dashboard');
-        } else {
-            setLocalError('Registration failed');
         }
     };
 

@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const cron = require("node-cron");
 const Food = require("../models/Food");
 const Assignment = require("../models/Assignment");
@@ -14,49 +15,78 @@ const initExpiryCron = () => {
   job = cron.schedule("*/5 * * * *", async () => {
     if (running) return;
     running = true;
+
+    const session = await mongoose.startSession();
     try {
+      session.startTransaction();
       const now = new Date();
 
       const foodsToExpire = await Food.find({
         expiresAt: { $lt: now },
-        status: { $nin: ["delivered", "expired"] }
-      });
+        status: { $nin: ["delivered", "expired"] },
+      })
+        .select("_id")
+        .session(session);
 
       if (!foodsToExpire.length) {
-        running = false;
+        await session.abortTransaction();
         return;
       }
 
-      const foodIds = foodsToExpire.map(f => f._id);
+      const foodIds = foodsToExpire.map((f) => f._id);
 
       await Food.updateMany(
         { _id: { $in: foodIds } },
-        { $set: { status: "expired" } }
+        { $set: { status: "expired" } },
+        { session }
       );
 
       const relatedAssignments = await Assignment.find({
         food: { $in: foodIds },
-        status: { $in: ["pending", "accepted"] }
-      }).populate("ngo");
+        status: { $in: ["pending", "accepted"] },
+      })
+        .select("_id ngo")
+        .session(session);
 
       if (relatedAssignments.length) {
-        const assignmentIds = relatedAssignments.map(a => a._id);
+        const assignmentIds = relatedAssignments.map((a) => a._id);
         await Assignment.updateMany(
           { _id: { $in: assignmentIds } },
-          { $set: { status: "rejected" } }
+          { $set: { status: "expired" } },
+          { session }
         );
 
-        const incOps = relatedAssignments
-          .filter(a => a.ngo && a.ngo._id)
-          .map(a => NGO.findByIdAndUpdate(a.ngo._id, { $inc: { capacity: 1 } }));
+        const ngoRecoveries = relatedAssignments.reduce((acc, assignment) => {
+          if (!assignment.ngo) return acc;
+          const ngoId = assignment.ngo.toString();
+          acc[ngoId] = (acc[ngoId] || 0) + 1;
+          return acc;
+        }, {});
 
-        if (incOps.length) {
-          await Promise.all(incOps);
+        for (const [ngoId, increment] of Object.entries(ngoRecoveries)) {
+          await NGO.updateOne(
+            { _id: ngoId },
+            { $inc: { capacity: increment } },
+            { session }
+          );
         }
       }
+
+      await session.commitTransaction();
+      console.log("[expiryCron] transaction committed", {
+        expiredFoodCount: foodIds.length,
+        expiredAssignmentCount: relatedAssignments.length,
+      });
     } catch (err) {
-      console.error("[expiryCron] error:", err.message);
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
+      console.error("[expiryCron] transaction aborted", {
+        message: err.message,
+        stack: err.stack,
+      });
     } finally {
+      session.endSession();
       running = false;
     }
   });
@@ -65,4 +95,11 @@ const initExpiryCron = () => {
   return job;
 };
 
-module.exports = { initExpiryCron };
+const stopExpiryCron = () => {
+  if (job) {
+    job.stop();
+    job = null;
+  }
+};
+
+module.exports = { initExpiryCron, stopExpiryCron };

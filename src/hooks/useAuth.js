@@ -20,7 +20,7 @@ export const useAuthStore = create(
 
                     set({
                         user: userData,
-                        role: userData.role,
+                        role: userData.role ? String(userData.role).toUpperCase() : null,
                         token,
                         isAuthenticated: true,
                         isLoading: false,
@@ -43,7 +43,7 @@ export const useAuthStore = create(
 
                     set({
                         user: userData,
-                        role: userData.role,
+                        role: userData.role ? String(userData.role).toUpperCase() : null,
                         token,
                         isAuthenticated: true,
                         isLoading: false,

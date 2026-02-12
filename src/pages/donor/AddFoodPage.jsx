@@ -172,8 +172,8 @@ const AddFoodPage = () => {
                             >
                                 <option value="">Select unit</option>
                                 <option value="kg">kilograms (kg)</option>
-                                <option value="servings">servings/plates</option>
-                                <option value="items">items/packets</option>
+                                <option value="portions">portions/plates</option>
+                                <option value="boxes">boxes/packets</option>
                                 <option value="liters">liters</option>
                             </select>
                             {errors.unit && (

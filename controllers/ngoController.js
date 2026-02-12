@@ -1,4 +1,5 @@
 const NGO = require("../models/NGO");
+const { sendError } = require("../utils/errorResponse");
 
 // Create NGO
 const createNGO = async (req, res, next) => {
@@ -45,7 +46,7 @@ const getNGOById = async (req, res, next) => {
     const ngo = await NGO.findById(id);
 
     if (!ngo) {
-      return res.status(404).json({ error: "NGO not found" });
+      return sendError(res, 404, "NGO not found", "NOT_FOUND");
     }
 
     res.status(200).json({ ngo });
@@ -61,6 +62,17 @@ const updateNGO = async (req, res, next) => {
     const { name, lat, lng, contact, email, capacity, avgResponseTime, status } =
       req.body;
 
+    const existingNgo = await NGO.findById(id);
+    if (!existingNgo) {
+      return sendError(res, 404, "NGO not found", "NOT_FOUND");
+    }
+
+    const isOwner = existingNgo.user && existingNgo.user.toString() === req.user.id;
+    const isAdmin = req.user.role === "ADMIN";
+    if (!isOwner && !isAdmin) {
+      return sendError(res, 403, "Not authorized to modify this NGO profile", "FORBIDDEN");
+    }
+
     const ngo = await NGO.findByIdAndUpdate(
       id,
       { name, lat, lng, contact, email, capacity, avgResponseTime, status },
@@ -68,7 +80,7 @@ const updateNGO = async (req, res, next) => {
     );
 
     if (!ngo) {
-      return res.status(404).json({ error: "NGO not found" });
+      return sendError(res, 404, "NGO not found", "NOT_FOUND");
     }
 
     res.status(200).json({ message: "NGO updated", ngo });
@@ -81,10 +93,21 @@ const updateNGO = async (req, res, next) => {
 const deleteNGO = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const existingNgo = await NGO.findById(id);
+    if (!existingNgo) {
+      return sendError(res, 404, "NGO not found", "NOT_FOUND");
+    }
+
+    const isOwner = existingNgo.user && existingNgo.user.toString() === req.user.id;
+    const isAdmin = req.user.role === "ADMIN";
+    if (!isOwner && !isAdmin) {
+      return sendError(res, 403, "Not authorized to delete this NGO profile", "FORBIDDEN");
+    }
+
     const ngo = await NGO.findByIdAndDelete(id);
 
     if (!ngo) {
-      return res.status(404).json({ error: "NGO not found" });
+      return sendError(res, 404, "NGO not found", "NOT_FOUND");
     }
 
     res.status(200).json({ message: "NGO deleted", ngo });

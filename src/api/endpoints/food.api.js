@@ -5,8 +5,8 @@ export const foodAPI = {
         const response = await api.post('/food', data);
         return response.data;
     },
-    getAll: async () => {
-        const response = await api.get('/food');
+    getAll: async (params = {}) => {
+        const response = await api.get('/food', { params });
         return response.data;
     },
     updateStatus: async (id, status) => {

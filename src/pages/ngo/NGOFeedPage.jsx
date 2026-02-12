@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { foodAPI } from '../../api';
 import { useToast } from '../../hooks/useToast';
 import Button from '../../components/ui/Button';
@@ -6,9 +7,9 @@ import Spinner from '../../components/ui/Spinner';
 import { formatDistanceToNow } from 'date-fns';
 
 const NGOFeedPage = () => {
+    const navigate = useNavigate();
     const [foods, setFoods] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [actionLoading, setActionLoading] = useState({});
     const toast = useToast();
 
     const fetchFoods = async () => {
@@ -30,21 +31,6 @@ const NGOFeedPage = () => {
         const interval = setInterval(fetchFoods, 30000);
         return () => clearInterval(interval);
     }, []);
-
-    const handleAcceptPickup = async (foodId) => {
-        try {
-            setActionLoading(prev => ({ ...prev, [foodId]: true }));
-            // 'assigned' is the status for accepted pickups
-            await foodAPI.updateStatus(foodId, 'assigned');
-            toast.success('Pickup accepted successfully!');
-            fetchFoods();
-        } catch (error) {
-            console.error('Accept pickup error:', error);
-            toast.error(error.response?.data?.message || 'Failed to accept pickup');
-        } finally {
-            setActionLoading(prev => ({ ...prev, [foodId]: false }));
-        }
-    };
 
     const getUrgencyBadge = (expiresAt) => {
         const hoursLeft = (new Date(expiresAt) - new Date()) / (1000 * 60 * 60);
@@ -168,12 +154,11 @@ const NGOFeedPage = () => {
                                 <div className="flex gap-3">
                                     <Button
                                         type="button"
-                                        onClick={() => handleAcceptPickup(food._id)}
-                                        loading={actionLoading[food._id]}
+                                        onClick={() => navigate('/ngo/assignments')}
                                         variant="primary"
                                         className="flex-1"
                                     >
-                                        Accept Pickup
+                                        View Assignments
                                     </Button>
                                     <Button
                                         type="button"

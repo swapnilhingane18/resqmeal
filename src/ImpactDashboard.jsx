@@ -86,119 +86,98 @@ export default function ImpactDashboard() {
   }
 
   return (
-    <div style={styles.page}>
-      <h2 style={styles.title}>🌟 ResQMeal Impact Dashboard</h2>
+    <div className="container-custom py-10 fade-in">
+      <div className="text-center mb-12">
+        <div className="inline-flex items-center gap-2 bg-green-50 border border-green-100 rounded-full px-4 py-1.5 mb-4">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+          </span>
+          <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">Live Updates</span>
+        </div>
+        <h2 className="text-4xl font-extrabold text-neutral-900 tracking-tight">
+          Impact Dashboard
+        </h2>
+        <p className="text-neutral-500 mt-2 text-lg">Real-time metrics on food rescue operations</p>
+      </div>
 
       {/* ---------- TOP CARDS ---------- */}
-      <div style={styles.cards}>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         {stats.map((s, i) => (
-          <div key={i} style={styles.card}>
-            <div style={styles.emoji}>{s.emoji}</div>
-            <div style={styles.value}>{s.value}</div>
-            <div style={styles.label}>{s.label}</div>
+          <div key={i} className="card border-neutral-100 shadow-lg shadow-neutral-100/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+            <div className="text-5xl mb-4 filter drop-shadow-sm">{s.emoji}</div>
+            <div className="text-4xl font-black text-neutral-900 mb-1">{s.value}</div>
+            <div className="text-neutral-500 font-medium">{s.label}</div>
           </div>
         ))}
       </div>
 
-      {/* ---------- AI URGENCY PIE ---------- */}
-      <div style={styles.box}>
-        <h3 style={styles.sectionTitle}>🤖 AI-Prioritized Pickups</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* ---------- AI URGENCY PIE ---------- */}
+        <div className="card shadow-lg shadow-neutral-100/50">
+          <h3 className="text-xl font-bold text-neutral-900 mb-6 flex items-center gap-2">
+            <span>🤖</span> AI-Prioritized Pickups
+          </h3>
 
-        <ResponsiveContainer width="100%" height={260}>
-          <PieChart>
-            <Pie
-              data={urgencyData}
-              cx="50%"
-              cy="50%"
-              outerRadius={90}
-              dataKey="value"
-              label
-            >
-              {urgencyData.map((_, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={URGENCY_COLORS[index % URGENCY_COLORS.length]}
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={urgencyData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  dataKey="value"
+                  paddingAngle={5}
+                >
+                  {urgencyData.map((_, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={URGENCY_COLORS[index % URGENCY_COLORS.length]}
+                      stroke="none"
+                    />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                  itemStyle={{ fontWeight: 600, color: '#374151' }}
                 />
-              ))}
-            </Pie>
-            <Tooltip />
-            <Legend />
-          </PieChart>
-        </ResponsiveContainer>
+                <Legend verticalAlign="bottom" height={36} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
 
-        <p style={styles.helperText}>
-          Real-time urgency distribution of active donations.
-        </p>
-      </div>
+          <p className="text-center text-sm text-neutral-400 mt-4 italic">
+            Real-time urgency distribution of active donations.
+          </p>
+        </div>
 
-      {/* ---------- WEEKLY BAR CHART ---------- */}
-      {/* This section is removed as per the instruction's implied changes */}
+        {/* ---------- RECENT ACTIVITY ---------- */}
+        <div className="card shadow-lg shadow-neutral-100/50">
+          <h3 className="text-xl font-bold text-neutral-900 mb-6 flex items-center gap-2">
+            <span>📢</span> Recent Activity
+          </h3>
+          <div className="space-y-4">
+            {recentActivity.length > 0 ? (
+              recentActivity.map((text, i) => (
+                <div key={i} className="flex gap-4 p-4 rounded-xl bg-neutral-50 border border-neutral-100 items-start">
+                  <div className="w-2 h-2 mt-2 rounded-full bg-green-500 shrink-0"></div>
+                  <p className="text-neutral-600 text-sm leading-relaxed">{text}</p>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-10 text-neutral-400">
+                No recent activity to show
+              </div>
+            )}
 
-      {/* ---------- RECENT ACTIVITY ---------- */}
-      <div style={styles.box}>
-        <h3 style={styles.sectionTitle}>📢 Recent Donations</h3>
-        <ul className="text-left space-y-2">
-          {recentActivity.map((text, i) => (
-            <li key={i} className="text-neutral-600 bg-neutral-50 p-2 rounded">
-              {text}
-            </li>
-          ))}
-        </ul>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
 /* -------------------- STYLES -------------------- */
-const styles = {
-  page: {
-    padding: "20px",
-    maxWidth: "1000px",
-    margin: "0 auto",
-    fontFamily: "'Inter', sans-serif",
-  },
-  title: {
-    fontSize: "2rem",
-    fontWeight: "bold",
-    marginBottom: "20px",
-    color: "#1f2937",
-    textAlign: "center",
-  },
-  cards: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-    gap: "20px",
-    marginBottom: "30px",
-  },
-  card: {
-    backgroundColor: "white",
-    padding: "20px",
-    borderRadius: "12px",
-    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-    textAlign: "center",
-    border: "1px solid #f3f4f6",
-  },
-  emoji: { fontSize: "2.5rem", marginBottom: "10px" },
-  value: { fontSize: "2rem", fontWeight: "bold", color: "#111827" },
-  label: { fontSize: "0.9rem", color: "#6b7280", marginTop: "5px" },
-  box: {
-    backgroundColor: "white",
-    padding: "25px",
-    borderRadius: "16px",
-    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-    marginBottom: "30px",
-    textAlign: "center",
-  },
-  sectionTitle: {
-    fontSize: "1.25rem",
-    fontWeight: "600",
-    marginBottom: "20px",
-    color: "#374151",
-  },
-  helperText: {
-    fontSize: "0.875rem",
-    color: "#9ca3af",
-    marginTop: "15px",
-    fontStyle: "italic",
-  },
-};
+const styles = {};

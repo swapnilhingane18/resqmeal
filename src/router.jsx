@@ -45,7 +45,7 @@ export const router = createBrowserRouter([
                 path: 'donor/add-food',
                 element: (
                     <SuspenseWrapper>
-                        <ProtectedRoute>
+                        <ProtectedRoute allowedRoles={['DONOR', 'ADMIN']}>
                             <AddFoodPage />
                         </ProtectedRoute>
                     </SuspenseWrapper>
@@ -55,7 +55,7 @@ export const router = createBrowserRouter([
                 path: 'ngo/feed',
                 element: (
                     <SuspenseWrapper>
-                        <ProtectedRoute>
+                        <ProtectedRoute allowedRoles={['NGO', 'ADMIN']}>
                             <NGOFeedPage />
                         </ProtectedRoute>
                     </SuspenseWrapper>
@@ -65,7 +65,7 @@ export const router = createBrowserRouter([
                 path: 'ngo/assignments',
                 element: (
                     <SuspenseWrapper>
-                        <ProtectedRoute>
+                        <ProtectedRoute allowedRoles={['NGO', 'ADMIN']}>
                             <NGOAssignmentsPage />
                         </ProtectedRoute>
                     </SuspenseWrapper>
@@ -73,7 +73,13 @@ export const router = createBrowserRouter([
             },
             {
                 path: 'dashboard',
-                element: <SuspenseWrapper><ImpactDashboard /></SuspenseWrapper>,
+                element: (
+                    <SuspenseWrapper>
+                        <ProtectedRoute allowedRoles={['DONOR', 'NGO', 'ADMIN']}>
+                            <ImpactDashboard />
+                        </ProtectedRoute>
+                    </SuspenseWrapper>
+                ),
             },
             {
                 path: '*',

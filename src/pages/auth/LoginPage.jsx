@@ -16,8 +16,6 @@ const LoginPage = () => {
         const success = await login(data.email, data.password);
         if (success) {
             navigate('/dashboard');
-        } else {
-            setLocalError('Invalid email or password');
         }
     };
 

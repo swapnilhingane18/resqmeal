@@ -1,5 +1,6 @@
 const Food = require("../models/Food");
 const { findAndAssignBestNGO } = require("./assignmentController");
+const { sendError } = require("../utils/errorResponse");
 
 // Create food listing and auto-assign to best NGO
 const createFood = async (req, res, next) => {
@@ -70,7 +71,7 @@ const getFoodById = async (req, res, next) => {
     const food = await Food.findById(id).populate("assignedNgo");
 
     if (!food) {
-      return res.status(404).json({ error: "Food listing not found" });
+      return sendError(res, 404, "Food listing not found", "NOT_FOUND");
     }
 
     res.status(200).json({ food });
@@ -86,17 +87,29 @@ const updateFoodStatus = async (req, res, next) => {
     const { status } = req.body;
 
     if (!["available", "assigned", "delivered", "expired"].includes(status)) {
-      return res.status(400).json({ error: "Invalid status" });
+      return sendError(res, 400, "Invalid status", "VALIDATION_ERROR");
     }
 
-    const food = await Food.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true, runValidators: true }
-    );
+    const existingFood = await Food.findById(id);
+    if (!existingFood) {
+      return sendError(res, 404, "Food listing not found", "NOT_FOUND");
+    }
+
+    const ownerId = existingFood.createdBy
+      ? existingFood.createdBy.toString()
+      : existingFood.donor?.user
+        ? existingFood.donor.user.toString()
+        : null;
+    const isOwner = ownerId && ownerId === req.user.id;
+    const isAdmin = req.user.role === "ADMIN";
+    if (!isOwner && !isAdmin) {
+      return sendError(res, 403, "Not authorized to modify this food listing", "FORBIDDEN");
+    }
+
+    const food = await Food.findByIdAndUpdate(id, { status }, { new: true, runValidators: true });
 
     if (!food) {
-      return res.status(404).json({ error: "Food listing not found" });
+      return sendError(res, 404, "Food listing not found", "NOT_FOUND");
     }
 
     res.status(200).json({ message: "Food status updated", food });
@@ -109,10 +122,26 @@ const updateFoodStatus = async (req, res, next) => {
 const deleteFood = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const existingFood = await Food.findById(id);
+    if (!existingFood) {
+      return sendError(res, 404, "Food listing not found", "NOT_FOUND");
+    }
+
+    const ownerId = existingFood.createdBy
+      ? existingFood.createdBy.toString()
+      : existingFood.donor?.user
+        ? existingFood.donor.user.toString()
+        : null;
+    const isOwner = ownerId && ownerId === req.user.id;
+    const isAdmin = req.user.role === "ADMIN";
+    if (!isOwner && !isAdmin) {
+      return sendError(res, 403, "Not authorized to delete this food listing", "FORBIDDEN");
+    }
+
     const food = await Food.findByIdAndDelete(id);
 
     if (!food) {
-      return res.status(404).json({ error: "Food listing not found" });
+      return sendError(res, 404, "Food listing not found", "NOT_FOUND");
     }
 
     res.status(200).json({ message: "Food listing deleted", food });
