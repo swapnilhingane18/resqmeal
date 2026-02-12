@@ -1,0 +1,63 @@
+import { createBrowserRouter } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
+import App from './App';
+import Spinner from './components/ui/Spinner';
+import ProtectedRoute from './components/ProtectedRoute';
+
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const AddFoodPage = lazy(() => import('./pages/donor/AddFoodPage'));
+const NGOFeedPage = lazy(() => import('./pages/ngo/NGOFeedPage'));
+const ImpactDashboard = lazy(() => import('./ImpactDashboard'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+
+const SuspenseWrapper = ({ children }) => (
+    <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center">
+            <Spinner size="xl" />
+        </div>
+    }>
+        {children}
+    </Suspense>
+);
+
+export const router = createBrowserRouter([
+    {
+        path: '/',
+        element: <App />,
+        errorElement: <SuspenseWrapper><NotFound /></SuspenseWrapper>,
+        children: [
+            {
+                index: true,
+                element: <SuspenseWrapper><LandingPage /></SuspenseWrapper>,
+            },
+            {
+                path: 'donor/add-food',
+                element: (
+                    <SuspenseWrapper>
+                        <ProtectedRoute>
+                            <AddFoodPage />
+                        </ProtectedRoute>
+                    </SuspenseWrapper>
+                ),
+            },
+            {
+                path: 'ngo/feed',
+                element: (
+                    <SuspenseWrapper>
+                        <ProtectedRoute>
+                            <NGOFeedPage />
+                        </ProtectedRoute>
+                    </SuspenseWrapper>
+                ),
+            },
+            {
+                path: 'dashboard',
+                element: <SuspenseWrapper><ImpactDashboard /></SuspenseWrapper>,
+            },
+            {
+                path: '*',
+                element: <SuspenseWrapper><NotFound /></SuspenseWrapper>,
+            },
+        ],
+    },
+]);
