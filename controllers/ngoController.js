@@ -3,7 +3,7 @@ const NGO = require("../models/NGO");
 // Create NGO
 const createNGO = async (req, res, next) => {
   try {
-    const { name, lat, lng, contact, email, capacity, avgResponseTime } = req.body;
+    const { name, lat, lng, contact, email, capacity, avgResponseTime, status } = req.body;
 
     const ngo = new NGO({
       name,
@@ -12,7 +12,9 @@ const createNGO = async (req, res, next) => {
       contact,
       email,
       capacity,
-      avgResponseTime
+      avgResponseTime,
+      status,
+      user: req.user.id
     });
 
     await ngo.save();
@@ -25,8 +27,8 @@ const createNGO = async (req, res, next) => {
 // Get all NGOs
 const getAllNGOs = async (req, res, next) => {
   try {
-    const { active = true } = req.query;
-    const query = active !== "false" ? { active: true } : {};
+    const { status = "active" } = req.query;
+    const query = status ? { status } : {};
 
     const ngos = await NGO.find(query).sort({ name: 1 });
 
@@ -56,12 +58,12 @@ const getNGOById = async (req, res, next) => {
 const updateNGO = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, lat, lng, contact, email, capacity, avgResponseTime, active } =
+    const { name, lat, lng, contact, email, capacity, avgResponseTime, status } =
       req.body;
 
     const ngo = await NGO.findByIdAndUpdate(
       id,
-      { name, lat, lng, contact, email, capacity, avgResponseTime, active },
+      { name, lat, lng, contact, email, capacity, avgResponseTime, status },
       { new: true, runValidators: true }
     );
 

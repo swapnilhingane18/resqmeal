@@ -33,9 +33,15 @@ const ngoSchema = new mongoose.Schema(
       default: 100,
       min: 0
     },
-    active: {
-      type: Boolean,
-      default: true
+    status: {
+      type: String,
+      enum: ["active", "inactive"],
+      default: "inactive"
+    },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
     }
   },
   {

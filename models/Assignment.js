@@ -16,6 +16,11 @@ const assignmentSchema = new mongoose.Schema(
       type: Number,
       required: true
     },
+    totalScore: Number, // New scoring system
+    distanceScore: Number,
+    urgencyScore: Number,
+    capacityScore: Number,
+    loadBalanceScore: Number,
     distance: {
       type: Number,
       required: true

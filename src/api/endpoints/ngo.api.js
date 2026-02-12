@@ -1,23 +1,24 @@
-import apiClient from '../axios.config';
+import api from '../axios';
 
 export const ngoAPI = {
+    create: async (data) => {
+        const response = await api.post('/ngos', data);
+        return response.data;
+    },
     getAll: async () => {
-        return apiClient.get('/ngos');
+        const response = await api.get('/ngos');
+        return response.data;
     },
-
     getById: async (id) => {
-        return apiClient.get(`/ngos/${id}`);
+        const response = await api.get(`/ngos/${id}`);
+        return response.data;
     },
-
-    create: async (ngoData) => {
-        return apiClient.post('/ngos', ngoData);
+    update: async (id, data) => {
+        const response = await api.put(`/ngos/${id}`, data);
+        return response.data;
     },
-
-    update: async (id, ngoData) => {
-        return apiClient.put(`/ngos/${id}`, ngoData);
-    },
-
-    delete: async (id) => {
-        return apiClient.delete(`/ngos/${id}`);
-    },
+    updateStatus: async (id, status) => {
+        const response = await api.put(`/ngos/${id}`, { status });
+        return response.data;
+    }
 };

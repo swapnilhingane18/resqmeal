@@ -23,38 +23,61 @@ function App() {
     <div className="min-h-screen">
       {/* Navigation Bar */}
       {!isLandingPage && (
-        <nav className="bg-white shadow-sm border-b border-neutral-200">
+        <nav className="bg-white shadow-sm border-b border-neutral-200 sticky top-0 z-50">
           <div className="container-custom py-4 flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={handleBackToHome}
-                className="text-neutral-600 hover:text-neutral-900 transition-colors"
-                aria-label="Back to home"
-              >
-                ← Back to Home
-              </button>
-              <h2 className="text-xl font-bold text-primary-600">
-                🌱 ResQMeal
+            {/* Logo */}
+            <div className="flex items-center gap-4 cursor-pointer" onClick={() => navigate('/dashboard')}>
+              <span className="text-2xl">🌱</span>
+              <h2 className="text-xl font-bold text-primary-600 hidden sm:block">
+                ResQMeal
               </h2>
             </div>
 
-            {role === 'donor' && location.pathname === '/dashboard' && (
-              <Button
-                onClick={handleAddMoreFood}
-                variant="primary"
-                size="sm"
-              >
-                + Add More Food
-              </Button>
-            )}
+            {/* Navigation Links */}
+            <div className="flex items-center gap-4">
+              {role === 'donor' && (
+                <>
+                  <button
+                    onClick={() => navigate('/donor/add-food')}
+                    className={`text-sm font-medium transition-colors ${location.pathname === '/donor/add-food' ? 'text-primary-600' : 'text-neutral-600 hover:text-primary-900'}`}
+                  >
+                    Donate Food
+                  </button>
+                </>
+              )}
 
-            {role && (
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-neutral-600">
-                  Role: <strong className="capitalize">{role}</strong>
-                </span>
+              {role === 'ngo' && (
+                <>
+                  <button
+                    onClick={() => navigate('/ngo/feed')}
+                    className={`text-sm font-medium transition-colors ${location.pathname === '/ngo/feed' ? 'text-primary-600' : 'text-neutral-600 hover:text-primary-900'}`}
+                  >
+                    Available Food
+                  </button>
+                  <button
+                    onClick={() => navigate('/ngo/assignments')}
+                    className={`text-sm font-medium transition-colors ${location.pathname === '/ngo/assignments' ? 'text-primary-600' : 'text-neutral-600 hover:text-primary-900'}`}
+                  >
+                    My Pickups
+                  </button>
+                </>
+              )}
+
+              {/* User Menu / Logout */}
+              <div className="flex items-center gap-3 pl-4 border-l border-neutral-200">
+                <div className="hidden md:flex flex-col items-end">
+                  <span className="text-xs font-semibold text-neutral-900 capitalize">{role}</span>
+                </div>
+                <Button
+                  onClick={handleBackToHome}
+                  variant="outline"
+                  size="sm"
+                  className="!py-1 !px-3 text-xs"
+                >
+                  Logout
+                </Button>
               </div>
-            )}
+            </div>
           </div>
         </nav>
       )}

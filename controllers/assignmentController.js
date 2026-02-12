@@ -5,32 +5,72 @@ const { calculateScore } = require("../services/priorityEngine");
 
 // Helper function to find best NGO and create assignment
 const findAndAssignBestNGO = async (food) => {
-  const ngos = await NGO.find({ active: true, capacity: { $gt: 0 } });
+  // 1. Find potential NGOs
+  const ngos = await NGO.find({ status: "active", capacity: { $gt: 0 } });
   if (ngos.length === 0) {
-    throw new Error("No active NGOs available");
+    return { assignment: null, score: null };
   }
 
+  // 2. Get active assignment counts for load balancing
+  const activeAssignments = await Assignment.aggregate([
+    {
+      $match: {
+        status: { $in: ["pending", "accepted", "assigned"] },
+        ngo: { $in: ngos.map(n => n._id) }
+      }
+    },
+    {
+      $group: {
+        _id: "$ngo",
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  // Create integer map for O(1) lookup
+  const assignmentCounts = {};
+  activeAssignments.forEach(item => {
+    assignmentCounts[item._id.toString()] = item.count;
+  });
+
+  // 3. Score all NGOs
   let bestNgo = null;
   let bestScore = -1;
-  let scoreDetails = null;
+  let bestScoreDetails = null;
 
   ngos.forEach(ngo => {
-    const scoreResult = calculateScore(food, ngo);
+    const currentActiveCount = assignmentCounts[ngo._id.toString()] || 0;
+    const scoreResult = calculateScore(food, ngo, currentActiveCount);
+
+    // Greedy approach: simply take the highest score
     if (scoreResult.totalScore > bestScore) {
       bestScore = scoreResult.totalScore;
       bestNgo = ngo;
-      scoreDetails = scoreResult;
+      bestScoreDetails = scoreResult;
     }
   });
 
-  // Create assignment record
+  if (!bestNgo) {
+    return { assignment: null, score: null };
+  }
+
+  // 4. Create assignment record with full breakdown
   const assignment = new Assignment({
     food: food._id,
     ngo: bestNgo._id,
-    score: bestScore,
-    distance: scoreDetails.distance,
-    timeUrgency: scoreDetails.timeUrgency,
-    responseScore: scoreDetails.responseScore
+
+    // New fields
+    totalScore: bestScoreDetails.totalScore,
+    distanceScore: bestScoreDetails.distanceScore,
+    urgencyScore: bestScoreDetails.urgencyScore,
+    capacityScore: bestScoreDetails.capacityScore,
+    loadBalanceScore: bestScoreDetails.loadBalanceScore,
+
+    // Legacy/Required fields
+    score: bestScoreDetails.totalScore, // Map totalScore to legacy score
+    distance: bestScoreDetails.distance,
+    timeUrgency: bestScoreDetails.timeUrgency,
+    responseScore: bestScoreDetails.responseScore
   });
 
   await assignment.save();
@@ -43,7 +83,7 @@ const findAndAssignBestNGO = async (food) => {
 
   return {
     assignment: await assignment.populate("food ngo"),
-    score: Number(bestScore.toFixed(3))
+    score: bestScore
   };
 };
 
@@ -63,6 +103,14 @@ const assignFood = async (req, res, next) => {
 
     const { assignment, score } = await findAndAssignBestNGO(food);
 
+    if (!assignment) {
+      return res.status(200).json({
+        message: "No active NGO found for assignment",
+        assignment: null,
+        score: null
+      });
+    }
+
     res.status(200).json({
       message: "Food assigned successfully",
       assignment,
@@ -77,10 +125,26 @@ const assignFood = async (req, res, next) => {
 const getAllAssignments = async (req, res, next) => {
   try {
     const { status } = req.query;
-    const query = status ? { status } : {};
+    let query = status ? { status } : {};
+
+    // Role-based filtering
+    if (req.user.role === 'NGO') {
+      const ngo = await NGO.findOne({ user: req.user.id });
+      if (!ngo) {
+        return res.status(404).json({ error: "NGO profile not found for this user" });
+      }
+      query.ngo = ngo._id;
+    } else if (req.user.role === 'DONOR') {
+      // Find foods created by this donor
+      // Use distinct to get food IDs, then filter assignments by those food IDs
+      const foods = await Food.find({ "donor.user": req.user.id }).select('_id');
+      const foodIds = foods.map(f => f._id);
+      query.food = { $in: foodIds };
+    }
+    // ADMIN sees all (no additional filter)
 
     const assignments = await Assignment.find(query)
-      .populate("food", "type quantity expiresAt status")
+      .populate("food", "type quantity expiresAt status description") // Added description
       .populate("ngo", "name lat lng contact")
       .sort({ assignedAt: -1 });
 

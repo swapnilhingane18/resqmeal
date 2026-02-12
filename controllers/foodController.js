@@ -15,7 +15,10 @@ const createFood = async (req, res, next) => {
       lat,
       lng,
       expiresAt,
-      donor,
+      donor: {
+        ...donor,
+        user: req.user.id
+      },
       notes
     });
 
@@ -23,6 +26,15 @@ const createFood = async (req, res, next) => {
 
     // Find and assign best NGO
     const { assignment, score } = await findAndAssignBestNGO(food);
+
+    if (!assignment) {
+      return res.status(201).json({
+        message: "Food listing created but not assigned (no active NGOs)",
+        food,
+        assignment: null,
+        score: null
+      });
+    }
 
     res.status(201).json({
       message: "Food listing created and assigned",

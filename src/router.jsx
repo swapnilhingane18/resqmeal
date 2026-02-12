@@ -5,8 +5,11 @@ import Spinner from './components/ui/Spinner';
 import ProtectedRoute from './components/ProtectedRoute';
 
 const LandingPage = lazy(() => import('./pages/LandingPage'));
+const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
 const AddFoodPage = lazy(() => import('./pages/donor/AddFoodPage'));
 const NGOFeedPage = lazy(() => import('./pages/ngo/NGOFeedPage'));
+const NGOAssignmentsPage = lazy(() => import('./pages/ngo/NGOAssignmentsPage'));
 const ImpactDashboard = lazy(() => import('./ImpactDashboard'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
@@ -31,6 +34,14 @@ export const router = createBrowserRouter([
                 element: <SuspenseWrapper><LandingPage /></SuspenseWrapper>,
             },
             {
+                path: 'login',
+                element: <SuspenseWrapper><LoginPage /></SuspenseWrapper>,
+            },
+            {
+                path: 'register',
+                element: <SuspenseWrapper><RegisterPage /></SuspenseWrapper>,
+            },
+            {
                 path: 'donor/add-food',
                 element: (
                     <SuspenseWrapper>
@@ -46,6 +57,16 @@ export const router = createBrowserRouter([
                     <SuspenseWrapper>
                         <ProtectedRoute>
                             <NGOFeedPage />
+                        </ProtectedRoute>
+                    </SuspenseWrapper>
+                ),
+            },
+            {
+                path: 'ngo/assignments',
+                element: (
+                    <SuspenseWrapper>
+                        <ProtectedRoute>
+                            <NGOAssignmentsPage />
                         </ProtectedRoute>
                     </SuspenseWrapper>
                 ),

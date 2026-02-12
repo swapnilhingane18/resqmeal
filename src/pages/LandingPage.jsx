@@ -4,15 +4,22 @@ import Button from '../components/ui/Button';
 
 const LandingPage = () => {
     const navigate = useNavigate();
-    const { login } = useAuth();
+    const { isAuthenticated, user, login } = useAuth();
 
     const handleRoleSelect = (role) => {
-        login({ role }, null);
-
-        if (role === 'donor') {
-            navigate('/donor/add-food');
-        } else if (role === 'ngo') {
-            navigate('/ngo/feed');
+        if (isAuthenticated) {
+            // If already logged in, redirect based on role
+            if (user?.role?.toLowerCase() === role) {
+                navigate(role === 'donor' ? '/donor/add-food' : '/ngo/feed');
+            } else {
+                // Different role? Logout first or just redirect to dashboard
+                navigate('/dashboard');
+            }
+        } else {
+            // Not logged in? Go to register with pre-selected role intent (via query param if needed, or just generic register)
+            // For now, let's just go to login/register.
+            // We can pass state to register page to pre-select role.
+            navigate('/register', { state: { role: role === 'donor' ? 'DONOR' : 'NGO' } });
         }
     };
 

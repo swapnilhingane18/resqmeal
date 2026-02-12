@@ -15,9 +15,11 @@ const NGOFeedPage = () => {
         try {
             setLoading(true);
             const response = await foodAPI.getAll({ status: 'available' });
+            // API returns { count, foods }
             setFoods(response.foods || []);
         } catch (error) {
-            toast.error(error?.error || 'Failed to load food listings');
+            console.error('Fetch foods error:', error);
+            toast.error(error.response?.data?.message || 'Failed to load food listings');
         } finally {
             setLoading(false);
         }
@@ -32,11 +34,13 @@ const NGOFeedPage = () => {
     const handleAcceptPickup = async (foodId) => {
         try {
             setActionLoading(prev => ({ ...prev, [foodId]: true }));
+            // 'assigned' is the status for accepted pickups
             await foodAPI.updateStatus(foodId, 'assigned');
             toast.success('Pickup accepted successfully!');
             fetchFoods();
         } catch (error) {
-            toast.error(error?.error || 'Failed to accept pickup');
+            console.error('Accept pickup error:', error);
+            toast.error(error.response?.data?.message || 'Failed to accept pickup');
         } finally {
             setActionLoading(prev => ({ ...prev, [foodId]: false }));
         }

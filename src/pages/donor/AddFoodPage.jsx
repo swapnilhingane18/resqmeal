@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { foodAPI } from '../../api';
 import { useToast } from '../../hooks/useToast';
 import Button from '../../components/ui/Button';
+import ScoreVisualization from '../../components/ScoreVisualization';
 
 const AddFoodPage = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [assignmentResult, setAssignmentResult] = useState(null);
     const toast = useToast();
     const { register, handleSubmit, formState: { errors }, reset } = useForm();
 
@@ -31,16 +33,58 @@ const AddFoodPage = () => {
                 notes: data.notes || undefined,
             };
 
-            await foodAPI.create(foodData);
-            toast.success('Food donation posted successfully! 🎉');
+            const response = await foodAPI.create(foodData);
+            // Response structure: { message, food, assignment, score }
+
+            if (response.assignment) {
+                setAssignmentResult(response.assignment);
+                toast.success('Food listed and assigned to an NGO! 🎉');
+            } else {
+                toast.success('Food listed successfully! Waiting for assignment.');
+                navigate('/dashboard');
+            }
+
             reset();
-            navigate('/dashboard');
         } catch (error) {
-            toast.error(error.error || 'Failed to post food donation');
+            console.error('Add food error:', error);
+            toast.error(error.response?.data?.message || 'Failed to post food donation');
         } finally {
             setLoading(false);
         }
     };
+
+    if (assignmentResult) {
+        return (
+            <div className="min-h-screen bg-neutral-50 py-12 px-4 flex items-center justify-center">
+                <div className="max-w-xl w-full space-y-6">
+                    <div className="text-center space-y-4">
+                        <div className="text-6xl">🎉</div>
+                        <h2 className="text-3xl font-bold text-neutral-900">Donation Successful!</h2>
+                        <p className="text-neutral-600">
+                            Your food has been instantly matched with an NGO using our optimization engine.
+                        </p>
+                    </div>
+
+                    <div className="card border-green-200 bg-green-50">
+                        <h3 className="font-semibold text-green-800 mb-2">Matched NGO:</h3>
+                        <p className="text-xl font-bold text-green-900">
+                            {assignmentResult.ngo?.name || 'Local Partner NGO'}
+                        </p>
+                    </div>
+
+                    <ScoreVisualization assignment={assignmentResult} />
+
+                    <Button
+                        variant="primary"
+                        className="w-full"
+                        onClick={() => navigate('/dashboard')}
+                    >
+                        Return to Dashboard
+                    </Button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-neutral-50 py-12 px-4">
@@ -104,13 +148,13 @@ const AddFoodPage = () => {
                             <input
                                 id="quantity"
                                 type="number"
-                                step="0.1"
+                                step="any"
                                 {...register('quantity', {
                                     required: 'Quantity is required',
                                     min: { value: 0.1, message: 'Quantity must be greater than 0' }
                                 })}
                                 className={`input ${errors.quantity ? 'input-error' : ''}`}
-                                placeholder="30"
+                                placeholder="0.0"
                             />
                             {errors.quantity && (
                                 <p className="form-error" role="alert">{errors.quantity.message}</p>
@@ -123,14 +167,18 @@ const AddFoodPage = () => {
                             </label>
                             <select
                                 id="unit"
-                                {...register('unit', { required: true })}
-                                className="input"
+                                {...register('unit', { required: 'Unit is required' })}
+                                className={`input ${errors.unit ? 'input-error' : ''}`}
                             >
-                                <option value="portions">Portions</option>
-                                <option value="kg">Kilograms (kg)</option>
-                                <option value="liters">Liters</option>
-                                <option value="boxes">Boxes</option>
+                                <option value="">Select unit</option>
+                                <option value="kg">kilograms (kg)</option>
+                                <option value="servings">servings/plates</option>
+                                <option value="items">items/packets</option>
+                                <option value="liters">liters</option>
                             </select>
+                            {errors.unit && (
+                                <p className="form-error" role="alert">{errors.unit.message}</p>
+                            )}
                         </div>
                     </div>
 
@@ -142,72 +190,40 @@ const AddFoodPage = () => {
                         <input
                             id="expiresAt"
                             type="datetime-local"
-                            {...register('expiresAt', {
-                                required: 'Expiry time is required',
-                                validate: (value) => {
-                                    const selectedDate = new Date(value);
-                                    const now = new Date();
-                                    return selectedDate > now || 'Expiry time must be in the future';
-                                }
-                            })}
+                            {...register('expiresAt', { required: 'Expiration time is required' })}
                             className={`input ${errors.expiresAt ? 'input-error' : ''}`}
                         />
                         {errors.expiresAt && (
                             <p className="form-error" role="alert">{errors.expiresAt.message}</p>
                         )}
-                        <p className="text-sm text-neutral-500 mt-1">
-                            When will this food expire or need to be picked up?
-                        </p>
                     </div>
 
-                    {/* Location */}
-                    <div>
-                        <h3 className="text-lg font-semibold mb-4">Pickup Location</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label htmlFor="lat" className="label">
-                                    Latitude <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    id="lat"
-                                    type="number"
-                                    step="any"
-                                    {...register('lat', {
-                                        required: 'Latitude is required',
-                                        min: { value: -90, message: 'Invalid latitude' },
-                                        max: { value: 90, message: 'Invalid latitude' }
-                                    })}
-                                    className={`input ${errors.lat ? 'input-error' : ''}`}
-                                    placeholder="28.7041"
-                                />
-                                {errors.lat && (
-                                    <p className="form-error" role="alert">{errors.lat.message}</p>
-                                )}
-                            </div>
-                            <div>
-                                <label htmlFor="lng" className="label">
-                                    Longitude <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    id="lng"
-                                    type="number"
-                                    step="any"
-                                    {...register('lng', {
-                                        required: 'Longitude is required',
-                                        min: { value: -180, message: 'Invalid longitude' },
-                                        max: { value: 180, message: 'Invalid longitude' }
-                                    })}
-                                    className={`input ${errors.lng ? 'input-error' : ''}`}
-                                    placeholder="77.1025"
-                                />
-                                {errors.lng && (
-                                    <p className="form-error" role="alert">{errors.lng.message}</p>
-                                )}
-                            </div>
+                    {/* Location (Simplified as Coords for Hackathon) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="lat" className="label">Latitude</label>
+                            <input
+                                id="lat"
+                                type="number"
+                                step="any"
+                                {...register('lat', { required: 'Latitude is required' })}
+                                className={`input ${errors.lat ? 'input-error' : ''}`}
+                                placeholder="19.0760"
+                                defaultValue="19.0760" // Mumbai default
+                            />
                         </div>
-                        <p className="text-sm text-neutral-500 mt-2">
-                            💡 Tip: You can use Google Maps to find coordinates
-                        </p>
+                        <div>
+                            <label htmlFor="lng" className="label">Longitude</label>
+                            <input
+                                id="lng"
+                                type="number"
+                                step="any"
+                                {...register('lng', { required: 'Longitude is required' })}
+                                className={`input ${errors.lng ? 'input-error' : ''}`}
+                                placeholder="72.8777"
+                                defaultValue="72.8777" // Mumbai default
+                            />
+                        </div>
                     </div>
 
                     {/* Donor Information */}
@@ -216,14 +232,11 @@ const AddFoodPage = () => {
                         <div className="space-y-4">
                             <div>
                                 <label htmlFor="donorName" className="label">
-                                    Name <span className="text-red-500">*</span>
+                                    Contact Name <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     id="donorName"
-                                    {...register('donorName', {
-                                        required: 'Name is required',
-                                        minLength: { value: 2, message: 'Name must be at least 2 characters' }
-                                    })}
+                                    {...register('donorName', { required: 'Name is required' })}
                                     className={`input ${errors.donorName ? 'input-error' : ''}`}
                                     placeholder="Your name or organization"
                                 />

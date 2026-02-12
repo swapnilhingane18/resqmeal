@@ -1,28 +1,20 @@
-import apiClient from '../axios.config';
+import api from '../axios';
 
 export const foodAPI = {
-    // Get all food listings
-    getAll: async (params = {}) => {
-        return apiClient.get('/food', { params });
+    create: async (data) => {
+        const response = await api.post('/food', data);
+        return response.data;
     },
-
-    // Get single food item
-    getById: async (id) => {
-        return apiClient.get(`/food/${id}`);
+    getAll: async () => {
+        const response = await api.get('/food');
+        return response.data;
     },
-
-    // Create new food listing
-    create: async (foodData) => {
-        return apiClient.post('/food', foodData);
-    },
-
-    // Update food status
     updateStatus: async (id, status) => {
-        return apiClient.patch(`/food/${id}/status`, { status });
+        const response = await api.put(`/food/${id}`, { status });
+        return response.data;
     },
-
-    // Delete food listing
     delete: async (id) => {
-        return apiClient.delete(`/food/${id}`);
-    },
+        const response = await api.delete(`/food/${id}`);
+        return response.data;
+    }
 };

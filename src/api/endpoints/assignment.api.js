@@ -1,19 +1,12 @@
-import apiClient from '../axios.config';
+import api from '../axios';
 
 export const assignmentAPI = {
-    getAll: async () => {
-        return apiClient.get('/assignments');
+    getMyAssignments: async () => {
+        const response = await api.get('/assignments');
+        return response.data;
     },
-
-    getById: async (id) => {
-        return apiClient.get(`/assignments/${id}`);
-    },
-
-    create: async (assignmentData) => {
-        return apiClient.post('/assignments', assignmentData);
-    },
-
     updateStatus: async (id, status) => {
-        return apiClient.patch(`/assignments/${id}/status`, { status });
-    },
+        const response = await api.put(`/assignments/${id}`, { status });
+        return response.data;
+    }
 };

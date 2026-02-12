@@ -33,13 +33,18 @@ const foodSchema = new mongoose.Schema(
       type: Date,
       required: [true, "Expiration time is required"],
       validate: {
-        validator: function(v) {
+        validator: function (v) {
           return v > new Date();
         },
         message: "Expiration time must be in the future"
       }
     },
     donor: {
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true
+      },
       name: String,
       contact: String,
       email: String
