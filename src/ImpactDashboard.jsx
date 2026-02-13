@@ -5,10 +5,15 @@ import {
   Pie,
   Cell,
   Legend,
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
 } from "recharts";
 import { useEffect, useState } from "react";
 import api from "./api/axios";
-import { foodAPI } from "./api";
+import { foodAPI, assignmentAPI } from "./api";
 import Spinner from "./components/ui/Spinner";
 
 const URGENCY_COLORS = ["#dc2626", "#f59e0b", "#16a34a"];
@@ -21,10 +26,43 @@ const SUMMARY_CARDS = [
   { key: "unassignedFood", label: "Unassigned Food", highlighted: true },
 ];
 
+const getDayKey = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+};
+
+const buildTrendData = (foods, assignments) => {
+  const foodByDay = {};
+  const assignmentByDay = {};
+
+  foods.forEach((food) => {
+    const key = getDayKey(food.createdAt);
+    if (!key) return;
+    foodByDay[key] = (foodByDay[key] || 0) + 1;
+  });
+
+  assignments.forEach((assignment) => {
+    const key = getDayKey(assignment.createdAt || assignment.assignedAt);
+    if (!key) return;
+    assignmentByDay[key] = (assignmentByDay[key] || 0) + 1;
+  });
+
+  const days = [...new Set([...Object.keys(foodByDay), ...Object.keys(assignmentByDay)])].sort();
+  return days.map((day) => ({
+    day,
+    label: day.slice(5).replace("-", "/"),
+    foodCreated: foodByDay[day] || 0,
+    assignmentsCreated: assignmentByDay[day] || 0,
+  }));
+};
+
 export default function ImpactDashboard() {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState("");
+  const [trendData, setTrendData] = useState([]);
   const [urgencyData, setUrgencyData] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
 
@@ -33,14 +71,17 @@ export default function ImpactDashboard() {
       try {
         setError("");
 
-        const [summaryRes, foodRes] = await Promise.all([
+        const [summaryRes, foodRes, assignmentRes] = await Promise.all([
           api.get("/demo/summary"),
           foodAPI.getAll(),
+          assignmentAPI.getMyAssignments(),
         ]);
 
         setSummary(summaryRes.data || null);
 
         const foods = Array.isArray(foodRes?.foods) ? foodRes.foods : [];
+        const assignments = Array.isArray(assignmentRes?.assignments) ? assignmentRes.assignments : [];
+        setTrendData(buildTrendData(foods, assignments));
 
         let high = 0;
         let medium = 0;
@@ -127,6 +168,55 @@ export default function ImpactDashboard() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="card shadow-lg shadow-neutral-100/50 mb-8">
+        <h3 className="text-xl font-bold text-neutral-900 mb-2">KPI Trend Chart</h3>
+        <p className="text-sm text-neutral-500 mb-6">
+          Daily trend for food records and assignment records.
+        </p>
+        <div className="h-[320px] w-full">
+          {trendData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trendData} margin={{ top: 8, right: 16, left: 4, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6b7280" }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#6b7280" }} />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: "12px",
+                    border: "none",
+                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                  }}
+                  itemStyle={{ fontWeight: 600, color: "#374151" }}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="foodCreated"
+                  name="Food Created"
+                  stroke="#16a34a"
+                  strokeWidth={3}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="assignmentsCreated"
+                  name="Assignments Created"
+                  stroke="#2563eb"
+                  strokeWidth={3}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-full flex items-center justify-center text-sm text-neutral-400">
+              No trend data available yet.
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
