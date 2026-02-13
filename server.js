@@ -14,6 +14,7 @@ const authRoutes = require("./routes/auth.routes");
 const foodRoutes = require("./routes/food.routes");
 const ngoRoutes = require("./routes/ngo.routes");
 const assignmentRoutes = require("./routes/assignment.routes");
+const demoRoutes = require("./routes/demo.routes");
 
 const app = express();
 
@@ -58,6 +59,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/food", foodRoutes);
 app.use("/api/ngos", ngoRoutes);
 app.use("/api/assignments", assignmentRoutes);
+app.use("/api/demo", demoRoutes);
 
 app.get("/health", (req, res) => {
   const dbState = getDbStateLabel();
