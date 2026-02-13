@@ -1,122 +1,178 @@
-const axios = require('axios');
-const mongoose = require('mongoose');
+const axios = require("axios");
+const mongoose = require("mongoose");
 
-const API_URL = 'http://localhost:3000/api';
+require("dotenv").config();
+
+const rawBaseUrl = process.env.VERIFY_API_BASE_URL || "http://localhost:3000";
+const normalizedBaseUrl = rawBaseUrl.replace(/\/+$/, "");
+const API_URL = normalizedBaseUrl.endsWith("/api")
+  ? normalizedBaseUrl
+  : `${normalizedBaseUrl}/api`;
+
+const api = axios.create({
+  baseURL: API_URL,
+  timeout: Number(process.env.VERIFY_HTTP_TIMEOUT_MS || 15000),
+  validateStatus: () => true,
+});
+
+const testPassword =
+  process.env.VERIFY_TEST_PASSWORD || `Verify_${Date.now()}_Pass!`;
 
 const donorUser = {
-    name: 'Test Donor',
-    email: `donor_${Date.now()}@test.com`,
-    password: 'password123',
-    role: 'DONOR'
+  name: "Test Donor",
+  email: `donor_${Date.now()}@test.com`,
+  password: testPassword,
+  role: "DONOR",
 };
 
 const ngoUser = {
-    name: 'Test NGO User',
-    email: `ngo_${Date.now()}@test.com`,
-    password: 'password123',
-    role: 'NGO'
+  name: "Test NGO User",
+  email: `ngo_${Date.now()}@test.com`,
+  password: testPassword,
+  role: "NGO",
 };
 
 const ngoProfile = {
-    name: 'Test NGO Organization',
-    lat: 40.7128,
-    lng: -74.0060,
-    contact: '1234567890',
-    email: 'ngo@org.com',
-    capacity: 100,
-    avgResponseTime: 10,
-    status: 'active'
+  name: "Test NGO Organization",
+  lat: 40.7128,
+  lng: -74.006,
+  contact: "1234567890",
+  email: "ngo@org.com",
+  capacity: 100,
+  avgResponseTime: 10,
+  status: "active",
 };
 
 const foodItem = {
-    type: 'cooked',
-    quantity: 10,
-    unit: 'kg',
-    description: 'Pasta',
-    lat: 40.7128,
-    lng: -74.0060,
-    expiresAt: new Date(Date.now() + 86400000).toISOString(),
-    donor: { name: 'Donor Name', contact: '123', email: 'donor@test.com' }
+  type: "cooked",
+  quantity: 10,
+  unit: "kg",
+  description: "Pasta",
+  lat: 40.7128,
+  lng: -74.006,
+  expiresAt: new Date(Date.now() + 86400000).toISOString(),
+  donor: { name: "Donor Name", contact: "123", email: "donor@test.com" },
 };
 
-require('dotenv').config();
+const ensureSuccess = (response, step) => {
+  if (response.status < 200 || response.status >= 300) {
+    const error = new Error(`${step} failed with status ${response.status}`);
+    error.response = response;
+    throw error;
+  }
+  return response.data;
+};
+
+const extractHttpError = (error) => {
+  if (error.response) {
+    return {
+      status: error.response.status,
+      body: error.response.data,
+      method: error.response.config?.method,
+      url: error.response.config?.url,
+    };
+  }
+
+  return {
+    message: error.message,
+    code: error.code,
+  };
+};
 
 async function runTest() {
-    try {
-        console.log('=== STARTING VERIFICATION ===');
+  try {
+    console.log("=== STARTING VERIFICATION ===");
+    console.log(`[verify_flow] API_URL=${API_URL}`);
 
-        const mongoUri = process.env.MONGO_URI;
-        if (!mongoUri) {
-            throw new Error("MONGO_URI is not defined in environment variables");
-        }
-
-        // Connect to MongoDB to clean up
-        await mongoose.connect(mongoUri);
-        console.log('🧹 Cleaning database...');
-        await mongoose.connection.collection('users').deleteMany({});
-        await mongoose.connection.collection('ngos').deleteMany({});
-        await mongoose.connection.collection('foods').deleteMany({});
-        await mongoose.connection.collection('assignments').deleteMany({});
-        console.log('✅ Database cleaned');
-
-        // 1. Register Donor
-        console.log('1. Registering Donor...');
-        const donorRes = await axios.post(`${API_URL}/auth/register`, donorUser);
-        const donorToken = donorRes.data.token;
-        console.log('✅ Donor registered');
-
-        // 2. Register NGO User
-        console.log('2. Registering NGO User...');
-        const ngoUserRes = await axios.post(`${API_URL}/auth/register`, ngoUser);
-        const ngoUserToken = ngoUserRes.data.token;
-        console.log('✅ NGO User registered');
-
-        // 3. Create NGO Profile (Active)
-        console.log('3. Creating Active NGO Profile...');
-        const ngoRes = await axios.post(`${API_URL}/ngos`, ngoProfile, {
-            headers: { Authorization: `Bearer ${ngoUserToken}` }
-        });
-        const ngoId = ngoRes.data.ngo._id;
-        console.log('✅ NGO Profile created with ID:', ngoId);
-
-        // 4. Create Food (Expect Assignment)
-        console.log('4. Creating Food (Expect Assignment)...');
-        const foodRes = await axios.post(`${API_URL}/food`, foodItem, {
-            headers: { Authorization: `Bearer ${donorToken}` }
-        });
-        console.log('Response:', foodRes.data.message);
-
-        if (foodRes.data.assignment) {
-            console.log('✅ Food assigned to NGO:', foodRes.data.assignment.ngo.name);
-        } else {
-            console.error('❌ Expected assignment but got none');
-        }
-
-        // 5. Deactivate NGO
-        console.log('5. Deactivating NGO...');
-        await axios.put(`${API_URL}/ngos/${ngoId}`, { status: 'inactive' }, {
-            headers: { Authorization: `Bearer ${ngoUserToken}` }
-        });
-        console.log('✅ NGO deactivated');
-
-        // 6. Create Food (Expect No Assignment)
-        console.log('6. Creating Food (Expect No Assignment)...');
-        const foodRes2 = await axios.post(`${API_URL}/food`, foodItem, {
-            headers: { Authorization: `Bearer ${donorToken}` }
-        });
-        console.log('Response:', foodRes2.data.message);
-
-        if (!foodRes2.data.assignment) {
-            console.log('✅ Food created but NOT assigned (as expected)');
-        } else {
-            console.error('❌ Expected no assignment but got one');
-        }
-
-        console.log('=== VERIFICATION COMPLETE ===');
-
-    } catch (error) {
-        console.error('❌ Test Failed:', error.response ? error.response.data : error.message);
+    const mongoUri = process.env.MONGO_URI;
+    if (!mongoUri) {
+      throw new Error("MONGO_URI is not defined in environment variables");
     }
+
+    await mongoose.connect(mongoUri);
+    console.log("[verify_flow] Cleaning database...");
+    await mongoose.connection.collection("users").deleteMany({});
+    await mongoose.connection.collection("ngos").deleteMany({});
+    await mongoose.connection.collection("foods").deleteMany({});
+    await mongoose.connection.collection("assignments").deleteMany({});
+    console.log("[verify_flow] Database cleaned");
+
+    console.log("1. Registering Donor...");
+    const donorData = ensureSuccess(
+      await api.post("/auth/register", donorUser),
+      "Register donor"
+    );
+    const donorToken = donorData.token;
+    console.log("Donor registered");
+
+    console.log("2. Registering NGO User...");
+    const ngoUserData = ensureSuccess(
+      await api.post("/auth/register", ngoUser),
+      "Register NGO user"
+    );
+    const ngoUserToken = ngoUserData.token;
+    console.log("NGO user registered");
+
+    console.log("3. Creating Active NGO Profile...");
+    const ngoData = ensureSuccess(
+      await api.post("/ngos", ngoProfile, {
+        headers: { Authorization: `Bearer ${ngoUserToken}` },
+      }),
+      "Create NGO profile"
+    );
+    const ngoId = ngoData.ngo._id;
+    console.log("NGO profile created with ID:", ngoId);
+
+    console.log("4. Creating Food (Expect Assignment)...");
+    const foodData = ensureSuccess(
+      await api.post("/food", foodItem, {
+        headers: { Authorization: `Bearer ${donorToken}` },
+      }),
+      "Create food (expect assignment)"
+    );
+    console.log("Response:", foodData.message);
+
+    if (foodData.assignment) {
+      console.log("Food assigned to NGO:", foodData.assignment.ngo.name);
+    } else {
+      console.error("Expected assignment but got none");
+    }
+
+    console.log("5. Deactivating NGO...");
+    ensureSuccess(
+      await api.put(
+        `/ngos/${ngoId}`,
+        { status: "inactive" },
+        { headers: { Authorization: `Bearer ${ngoUserToken}` } }
+      ),
+      "Deactivate NGO"
+    );
+    console.log("NGO deactivated");
+
+    console.log("6. Creating Food (Expect No Assignment)...");
+    const foodData2 = ensureSuccess(
+      await api.post("/food", foodItem, {
+        headers: { Authorization: `Bearer ${donorToken}` },
+      }),
+      "Create food (expect no assignment)"
+    );
+    console.log("Response:", foodData2.message);
+
+    if (!foodData2.assignment) {
+      console.log("Food created but NOT assigned (as expected)");
+    } else {
+      console.error("Expected no assignment but got one");
+    }
+
+    console.log("=== VERIFICATION COMPLETE ===");
+  } catch (error) {
+    console.error("Test Failed:", extractHttpError(error));
+    process.exitCode = 1;
+  } finally {
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
+  }
 }
 
 runTest();
