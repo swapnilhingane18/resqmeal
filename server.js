@@ -38,8 +38,8 @@ const validateEnvironment = () => {
     missing.push("JWT_SECRET");
   }
 
-  if (!process.env.MONGO_URI && !process.env.MONGODB_URI) {
-    missing.push("MONGO_URI or MONGODB_URI");
+  if (!process.env.MONGO_URI) {
+    missing.push("MONGO_URI");
   }
 
   if (missing.length) {

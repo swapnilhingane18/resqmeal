@@ -3,9 +3,9 @@ const mongoose = require("mongoose");
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const connectDB = async () => {
-  const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
+  const uri = process.env.MONGO_URI;
   if (!uri) {
-    throw new Error("MONGO_URI / MONGODB_URI is not defined in environment variables");
+    throw new Error("MONGO_URI is not defined in environment variables");
   }
 
   const maxRetries = Number(process.env.DB_CONNECT_RETRIES || 5);
@@ -14,8 +14,9 @@ const connectDB = async () => {
   for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
     try {
       console.log(`[db] connecting to MongoDB (attempt ${attempt}/${maxRetries})...`);
+      const isAtlasSrv = uri.startsWith("mongodb+srv://");
       const conn = await mongoose.connect(uri, {
-        tls: true,
+        tls: isAtlasSrv,
         serverSelectionTimeoutMS: 5000,
         socketTimeoutMS: 45000,
       });
