@@ -27,6 +27,16 @@ const userSchema = new mongoose.Schema({
         enum: ['DONOR', 'NGO', 'ADMIN'],
         default: 'DONOR'
     },
+    location: {
+        latitude: {
+            type: Number,
+            required: false
+        },
+        longitude: {
+            type: Number,
+            required: false
+        }
+    },
     createdAt: {
         type: Date,
         default: Date.now

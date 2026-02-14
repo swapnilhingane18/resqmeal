@@ -11,7 +11,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import api from "./api/axios";
 import { foodAPI, assignmentAPI } from "./api";
 import Spinner from "./components/ui/Spinner";
@@ -59,12 +60,62 @@ const buildTrendData = (foods, assignments) => {
 };
 
 export default function ImpactDashboard() {
+  const kpiChartRef = useRef(null);
+  const urgencyChartRef = useRef(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  const [kpiContainerReady, setKpiContainerReady] = useState(false);
+  const [urgencyContainerReady, setUrgencyContainerReady] = useState(false);
   const [summary, setSummary] = useState(null);
+  const [mapData, setMapData] = useState(null);
   const [error, setError] = useState("");
   const [trendData, setTrendData] = useState([]);
   const [urgencyData, setUrgencyData] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return undefined;
+
+    const bindSizeObserver = (ref, setReady, label) => {
+      const node = ref.current;
+      if (!node) return () => {};
+
+      const measure = () => {
+        const width = node.offsetWidth;
+        const height = node.offsetHeight;
+        console.log(`[${label}] offsetWidth:`, width, "offsetHeight:", height);
+        setReady(width > 0 && height > 0);
+      };
+
+      measure();
+
+      const resizeObserver = new ResizeObserver(measure);
+      resizeObserver.observe(node);
+
+      window.addEventListener("resize", measure);
+
+      return () => {
+        resizeObserver.disconnect();
+        window.removeEventListener("resize", measure);
+      };
+    };
+
+    const disposeKpiObserver = bindSizeObserver(kpiChartRef, setKpiContainerReady, "KPI Chart");
+    const disposeUrgencyObserver = bindSizeObserver(
+      urgencyChartRef,
+      setUrgencyContainerReady,
+      "Urgency Chart"
+    );
+
+    return () => {
+      disposeKpiObserver();
+      disposeUrgencyObserver();
+    };
+  }, [mounted]);
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -78,6 +129,14 @@ export default function ImpactDashboard() {
         ]);
 
         setSummary(summaryRes.data || null);
+
+        try {
+          const mapRes = await api.get("/demo/map-data");
+          setMapData(mapRes.data || null);
+        } catch (mapError) {
+          console.error("Map data fetch error:", mapError);
+          setMapData({ donors: [], ngos: [], food: [] });
+        }
 
         const foods = Array.isArray(foodRes?.foods) ? foodRes.foods : [];
         const assignments = Array.isArray(assignmentRes?.assignments) ? assignmentRes.assignments : [];
@@ -175,9 +234,9 @@ export default function ImpactDashboard() {
         <p className="text-sm text-neutral-500 mb-6">
           Daily trend for food records and assignment records.
         </p>
-        <div className="h-[320px] w-full">
-          {trendData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
+        <div ref={kpiChartRef} className="h-[320px] w-full">
+          {mounted && kpiContainerReady && trendData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={320}>
               <LineChart data={trendData} margin={{ top: 8, right: 16, left: 4, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6b7280" }} />
@@ -219,37 +278,116 @@ export default function ImpactDashboard() {
         </div>
       </div>
 
+      <div className="card shadow-lg shadow-neutral-100/50 mb-8">
+        <h3 className="text-xl font-bold text-neutral-900 mb-2">Geographic View</h3>
+        <p className="text-sm text-neutral-500 mb-6">
+          Live markers for donors, NGOs, and food pickups.
+        </p>
+        <div className="w-full overflow-hidden rounded-xl border border-neutral-200">
+          <MapContainer center={[18.5204, 73.8567]} zoom={13} style={{ height: "400px", width: "100%" }}>
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
+            {(mapData?.donors || [])
+              .filter((donor) => donor?.location?.latitude != null && donor?.location?.longitude != null)
+              .map((donor) => (
+                <CircleMarker
+                  key={`donor-${donor._id}`}
+                  center={[donor.location.latitude, donor.location.longitude]}
+                  radius={8}
+                  pathOptions={{ color: "#2563eb", fillColor: "#3b82f6", fillOpacity: 0.9 }}
+                >
+                  <Popup>
+                    <div className="text-sm">
+                      <p className="font-semibold">{donor.name || "Donor"}</p>
+                      <p>Role: {donor.role || "DONOR"}</p>
+                    </div>
+                  </Popup>
+                </CircleMarker>
+              ))}
+
+            {(mapData?.ngos || [])
+              .filter((ngo) => ngo?.lat != null && ngo?.lng != null)
+              .map((ngo) => (
+                <CircleMarker
+                  key={`ngo-${ngo._id}`}
+                  center={[ngo.lat, ngo.lng]}
+                  radius={8}
+                  pathOptions={{ color: "#7e22ce", fillColor: "#a855f7", fillOpacity: 0.9 }}
+                >
+                  <Popup>
+                    <div className="text-sm">
+                      <p className="font-semibold">{ngo.name || "NGO"}</p>
+                      <p>Active: {ngo.active ? "Yes" : "No"}</p>
+                    </div>
+                  </Popup>
+                </CircleMarker>
+              ))}
+
+            {(mapData?.food || [])
+              .filter((item) => item?.lat != null && item?.lng != null)
+              .map((item) => {
+                const isAssigned = item.status === "assigned";
+                return (
+                  <CircleMarker
+                    key={`food-${item._id}`}
+                    center={[item.lat, item.lng]}
+                    radius={7}
+                    pathOptions={{
+                      color: isAssigned ? "#15803d" : "#b91c1c",
+                      fillColor: isAssigned ? "#22c55e" : "#ef4444",
+                      fillOpacity: 0.9,
+                    }}
+                  >
+                    <Popup>
+                      <div className="text-sm">
+                        <p className="font-semibold">{item.description || "Food item"}</p>
+                        <p>Status: {item.status || "unknown"}</p>
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                );
+              })}
+          </MapContainer>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="card shadow-lg shadow-neutral-100/50">
           <h3 className="text-xl font-bold text-neutral-900 mb-6">AI Prioritized Pickups</h3>
 
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={urgencyData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  dataKey="value"
-                  paddingAngle={5}
-                >
-                  {urgencyData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={URGENCY_COLORS[index % URGENCY_COLORS.length]} stroke="none" />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: "12px",
-                    border: "none",
-                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                  }}
-                  itemStyle={{ fontWeight: 600, color: "#374151" }}
-                />
-                <Legend verticalAlign="bottom" height={36} />
-              </PieChart>
-            </ResponsiveContainer>
+          <div ref={urgencyChartRef} className="h-[300px] w-full">
+            {mounted && urgencyContainerReady ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={urgencyData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    dataKey="value"
+                    paddingAngle={5}
+                  >
+                    {urgencyData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={URGENCY_COLORS[index % URGENCY_COLORS.length]} stroke="none" />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: "12px",
+                      border: "none",
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                    }}
+                    itemStyle={{ fontWeight: 600, color: "#374151" }}
+                  />
+                  <Legend verticalAlign="bottom" height={36} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-sm text-neutral-400">
+                Loading chart...
+              </div>
+            )}
           </div>
 
           <p className="text-center text-sm text-neutral-400 mt-4 italic">

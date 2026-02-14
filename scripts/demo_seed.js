@@ -9,6 +9,22 @@ const Assignment = require("../models/Assignment");
 const { findAndAssignBestNGO } = require("../controllers/assignmentController");
 
 const DEMO_PASSWORD = "Demo@123";
+const baseLat = 18.5204;
+const baseLng = 73.8567;
+
+function seededOffset(index) {
+  return ((index % 5) - 2) * 0.005;
+}
+
+const donorLocationFromIndex = (index) => ({
+  latitude: baseLat + seededOffset(index),
+  longitude: baseLng + seededOffset(index),
+});
+
+const pointFromIndex = (index) => ({
+  lat: baseLat + seededOffset(index),
+  lng: baseLng + seededOffset(index + 1),
+});
 
 const DONOR_SEED = [
   {
@@ -21,7 +37,10 @@ const DONOR_SEED = [
     email: "donor2@example.com",
     role: "DONOR",
   },
-];
+].map((donor, index) => ({
+  ...donor,
+  location: donorLocationFromIndex(index),
+}));
 
 const NGO_USER_SEED = [
   {
@@ -40,8 +59,7 @@ const NGO_PROFILE_SEED = [
   {
     userEmail: "ngo1@example.com",
     name: "Hope Kitchen NGO",
-    lat: 19.0887,
-    lng: 72.8679,
+    ...pointFromIndex(10),
     avgResponseTime: 12,
     contact: "+91-9000000001",
     email: "ngo1@example.com",
@@ -51,8 +69,7 @@ const NGO_PROFILE_SEED = [
   {
     userEmail: "ngo2@example.com",
     name: "Care Share Foundation",
-    lat: 19.0267,
-    lng: 72.8553,
+    ...pointFromIndex(11),
     avgResponseTime: 18,
     contact: "+91-9000000002",
     email: "ngo2@example.com",
@@ -70,8 +87,7 @@ const buildFoodSeed = (now) => [
     quantity: 30,
     unit: "portions",
     description: "Fresh cooked meals (high urgency)",
-    lat: 19.0908,
-    lng: 72.8602,
+    ...pointFromIndex(20),
     expiresAt: addHours(now, 2).toISOString(),
     notes: "Very short shelf life",
   },
@@ -81,8 +97,7 @@ const buildFoodSeed = (now) => [
     quantity: 12,
     unit: "boxes",
     description: "Packaged snack kits",
-    lat: 19.0282,
-    lng: 72.8504,
+    ...pointFromIndex(21),
     expiresAt: addHours(now, 10).toISOString(),
     notes: "Easy transportation",
   },
@@ -92,8 +107,7 @@ const buildFoodSeed = (now) => [
     quantity: 18,
     unit: "kg",
     description: "Raw vegetables stock",
-    lat: 19.1128,
-    lng: 72.9104,
+    ...pointFromIndex(22),
     expiresAt: addHours(now, 26).toISOString(),
     notes: "Lower urgency, larger quantity",
   },
@@ -103,8 +117,7 @@ const buildFoodSeed = (now) => [
     quantity: 8,
     unit: "boxes",
     description: "Prepared meal kits (medium urgency)",
-    lat: 19.0728,
-    lng: 72.8826,
+    ...pointFromIndex(23),
     expiresAt: addHours(now, 6).toISOString(),
     notes: "Moderate urgency",
   },
