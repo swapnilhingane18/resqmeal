@@ -12,10 +12,14 @@ import {
   YAxis,
 } from "recharts";
 import { useEffect, useRef, useState } from "react";
+import { parseISO, formatDistanceToNow } from "date-fns";
+import { useAuth } from "./hooks/useAuth";
+import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import api from "./api/axios";
 import { foodAPI, assignmentAPI } from "./api";
 import Spinner from "./components/ui/Spinner";
+import CountUp from "react-countup";
 
 const URGENCY_COLORS = ["#dc2626", "#f59e0b", "#16a34a"];
 
@@ -60,6 +64,9 @@ const buildTrendData = (foods, assignments) => {
 };
 
 export default function ImpactDashboard() {
+  const { user, role } = useAuth();
+  const isNGO = role === "NGO" || role === "ADMIN";
+
   const kpiChartRef = useRef(null);
   const urgencyChartRef = useRef(null);
   const [loading, setLoading] = useState(true);
@@ -265,36 +272,75 @@ export default function ImpactDashboard() {
         </div>
       )}
 
-      {/* EMERGENCY SCAN BUTTON & RESULT */}
-      <div className="flex flex-col items-center justify-center mb-8">
-        <button
-          onClick={handleEmergencyScan}
-          disabled={scanning}
-          className={`
-              relative px-8 py-4 rounded-full font-bold text-white text-lg shadow-xl transition-all transform hover:scale-105 active:scale-95
-              ${scanning
-              ? "bg-neutral-400 cursor-not-allowed"
-              : "bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 animate-pulse-slow"
-            }
-            `}
-        >
-          {scanning ? (
-            <span className="flex items-center gap-2">
-              <Spinner className="w-5 h-5 text-white" /> Scanning...
-            </span>
-          ) : (
-            <span className="flex items-center gap-2">
-              🚨 Run Emergency Rescue Scan
-            </span>
-          )}
-        </button>
+      {/* EMERGENCY SCAN BUTTON & RESULT - NGO/ADMIN ONLY */}
+      {isNGO && (
+        <div className="flex flex-col items-center justify-center mb-12">
+          <button
+            onClick={handleEmergencyScan}
+            disabled={scanning}
+            className={`
+                relative px-8 py-4 rounded-full font-bold text-white text-lg shadow-xl transition-all transform hover:scale-105 active:scale-95
+                ${scanning
+                ? "bg-neutral-400 cursor-not-allowed"
+                : "bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 animate-pulse-slow"
+              }
+              `}
+          >
+            {scanning ? (
+              <span className="flex items-center gap-2">
+                <Spinner className="w-5 h-5 text-white" /> Scanning...
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                🚨 Run Emergency Rescue Scan
+              </span>
+            )}
+          </button>
 
-        {scanResult && (
-          <div className="mt-4 p-4 bg-green-100 border border-green-200 text-green-800 rounded-lg shadow-sm text-center fade-in">
-            <strong>Scan Complete!</strong> <br />
-            Scanned: {scanResult.scannedItems} | Rescued: {scanResult.autoAssignedCount} | Time: {scanResult.scanDurationMs}ms
+          {scanResult && (
+            <div className="mt-4 p-4 bg-green-100 border border-green-200 text-green-800 rounded-lg shadow-sm text-center fade-in">
+              <strong>Scan Complete!</strong> <br />
+              Scanned: <CountUp end={scanResult.scannedItems} duration={1} /> |
+              Rescued: <CountUp end={scanResult.autoAssignedCount} duration={1} /> |
+              Time: {scanResult.scanDurationMs}ms
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* NEW IMPACT COUNTERS */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
+        <div className="p-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg text-white text-center transform hover:scale-105 transition-transform">
+          <div className="text-sm font-medium opacity-90 mb-1">Total Food Saved</div>
+          <div className="text-3xl font-extrabold">
+            {summary ? <CountUp end={summary.totalFood || 0} duration={1.5} suffix=" kg" /> : "--"}
           </div>
-        )}
+        </div>
+        <div className="p-6 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl shadow-lg text-white text-center transform hover:scale-105 transition-transform">
+          <div className="text-sm font-medium opacity-90 mb-1">Meals Generated</div>
+          <div className="text-3xl font-extrabold">
+            {summary ? <CountUp end={(summary.totalFood || 0) * 5} duration={1.5} separator="," /> : "--"}
+          </div>
+        </div>
+        <div className="p-6 bg-gradient-to-br from-pink-500 to-rose-600 rounded-2xl shadow-lg text-white text-center transform hover:scale-105 transition-transform">
+          <div className="text-sm font-medium opacity-90 mb-1">Emergency Rescues</div>
+          <div className="text-3xl font-extrabold">
+            <CountUp end={emergencyCount + (scanResult?.autoAssignedCount || 0)} duration={1.5} />
+          </div>
+        </div>
+        <div className="p-6 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl shadow-lg text-white text-center transform hover:scale-105 transition-transform">
+          <div className="text-sm font-medium opacity-90 mb-1">Rescue Efficiency</div>
+          <div className="text-3xl font-extrabold">
+            {summary && summary.totalFood > 0 ? (
+              <CountUp
+                end={((summary.totalAssignments || 0) / summary.totalFood) * 100}
+                duration={1.5}
+                decimals={1}
+                suffix="%"
+              />
+            ) : "--"}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5 mb-12">
@@ -310,7 +356,9 @@ export default function ImpactDashboard() {
               {card.label}
             </div>
             <div className={`mt-2 text-4xl font-black ${card.highlighted ? "text-red-700" : "text-neutral-900"}`}>
-              {summary ? summary[card.key] : "--"}
+              {summary ? (
+                <CountUp end={summary[card.key] || 0} duration={1.2} />
+              ) : "--"}
             </div>
           </div>
         ))}
