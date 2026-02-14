@@ -73,6 +73,10 @@ export default function ImpactDashboard() {
   const [urgencyData, setUrgencyData] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
 
+  // New State for Urgency Counts
+  const [emergencyCount, setEmergencyCount] = useState(0);
+  const [criticalCount, setCriticalCount] = useState(0);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -82,12 +86,11 @@ export default function ImpactDashboard() {
 
     const bindSizeObserver = (ref, setReady, label) => {
       const node = ref.current;
-      if (!node) return () => {};
+      if (!node) return () => { };
 
       const measure = () => {
         const width = node.offsetWidth;
         const height = node.offsetHeight;
-        console.log(`[${label}] offsetWidth:`, width, "offsetHeight:", height);
         setReady(width > 0 && height > 0);
       };
 
@@ -145,13 +148,23 @@ export default function ImpactDashboard() {
         let high = 0;
         let medium = 0;
         let low = 0;
+        let emergency = 0;
+        let critical = 0;
 
         foods.forEach((food) => {
+          // Use API provided Urgency Level if available, else fallback
+          if (food.urgencyLevel === "EMERGENCY") emergency++;
+          if (food.urgencyLevel === "CRITICAL") critical++;
+
+          // Legacy chart buckets
           const hoursLeft = (new Date(food.expiresAt) - new Date()) / (1000 * 60 * 60);
           if (hoursLeft < 6) high += 1;
           else if (hoursLeft < 24) medium += 1;
           else low += 1;
         });
+
+        setEmergencyCount(emergency);
+        setCriticalCount(critical);
 
         setUrgencyData([
           { name: "High Urgency (<6h)", value: high },
@@ -164,8 +177,7 @@ export default function ImpactDashboard() {
           .slice(0, 3)
           .map(
             (food) =>
-              `${food.quantity} ${food.unit} ${food.type} listed in ${
-                (food.description || "food donation").slice(0, 24)
+              `${food.quantity} ${food.unit} ${food.type} listed in ${(food.description || "food donation").slice(0, 24)
               }...`
           );
 
@@ -203,6 +215,19 @@ export default function ImpactDashboard() {
         <p className="text-neutral-500 mt-2 text-lg">Real-time metrics on food rescue operations</p>
       </div>
 
+      {/* EMERGENCY ALERT BANNER */}
+      {emergencyCount > 0 && (
+        <div className="mb-8 rounded-xl border border-red-200 bg-red-100 px-6 py-4 flex items-center gap-4 animate-pulse shadow-md shadow-red-50">
+          <span className="text-3xl">🚨</span>
+          <div>
+            <h3 className="text-lg font-bold text-red-800">Emergency Rescue Active</h3>
+            <p className="text-red-700">
+              {emergencyCount} food items are in the EMERGENCY rescue window and being prioritized!
+            </p>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="mb-8 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
@@ -213,11 +238,10 @@ export default function ImpactDashboard() {
         {SUMMARY_CARDS.map((card) => (
           <div
             key={card.key}
-            className={`card transition-all duration-300 ${
-              card.highlighted
+            className={`card transition-all duration-300 ${card.highlighted
                 ? "border-red-200 bg-red-50/70 shadow-lg shadow-red-100/60"
                 : "border-neutral-100 shadow-lg shadow-neutral-100/50"
-            }`}
+              }`}
           >
             <div className={`text-sm font-semibold ${card.highlighted ? "text-red-700" : "text-neutral-500"}`}>
               {card.label}
@@ -227,6 +251,18 @@ export default function ImpactDashboard() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* URGENCY SUMMARY CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-12">
+        <div className="card border-red-200 bg-red-50 shadow-lg shadow-red-50">
+          <div className="text-sm font-semibold text-red-800">Emergency Items (High Risk)</div>
+          <div className="mt-2 text-4xl font-black text-red-900">{emergencyCount}</div>
+        </div>
+        <div className="card border-orange-200 bg-orange-50 shadow-lg shadow-orange-50">
+          <div className="text-sm font-semibold text-orange-800">Critical Items (Warning)</div>
+          <div className="mt-2 text-4xl font-black text-orange-900">{criticalCount}</div>
+        </div>
       </div>
 
       <div className="card shadow-lg shadow-neutral-100/50 mb-8">

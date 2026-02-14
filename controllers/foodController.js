@@ -1,6 +1,21 @@
 const Food = require("../models/Food");
 const { findAndAssignBestNGO } = require("./assignmentController");
+const { calculateUrgency } = require("../services/urgency.service");
+const { checkAndTriggerAutoAssignment } = require("../services/emergencyTrigger.service");
 const { sendError } = require("../utils/errorResponse");
+
+// Helper to inject dynamic urgency data
+const withUrgency = (foodDoc) => {
+  if (!foodDoc) return null;
+  const food = foodDoc.toObject ? foodDoc.toObject() : foodDoc;
+  const { urgencyScore, urgencyLevel, hoursRemaining } = calculateUrgency(food);
+  return {
+    ...food,
+    urgencyScore,
+    urgencyLevel,
+    hoursRemaining
+  };
+};
 
 // Create food listing and auto-assign to best NGO
 const createFood = async (req, res, next) => {
@@ -25,23 +40,49 @@ const createFood = async (req, res, next) => {
 
     await food.save();
 
-    // Find and assign best NGO
-    const { assignment, score } = await findAndAssignBestNGO(food);
+    // ---------------------------------------------------------
+    // EMERGENCY RESCUE ENGINE TRIGGER
+    // ---------------------------------------------------------
+    const emergencyResult = await checkAndTriggerAutoAssignment(food);
 
-    if (!assignment) {
+    // If auto-assigned by emergency trigger, return that result
+    if (emergencyResult.autoTriggered && emergencyResult.success) {
+      const updatedFood = await Food.findById(food._id).populate("assignedNgo", "name lat lng contact");
       return res.status(201).json({
-        message: "Food listing created but not assigned (no active NGOs)",
-        food,
-        assignment: null,
-        score: null
+        message: "⚡ EMERGENCY RESCUE ACTIVATED: Food auto-assigned!",
+        food: withUrgency(updatedFood),
+        assignment: emergencyResult.assignment,
+        score: emergencyResult.urgencyScore,
+        autoTriggered: true
       });
     }
 
+    // Normal Flow (Low urgency or no NGO found yet)
+    // We still try to find an assignment if specific logic demands, 
+    // or just return the created food.
+    // The original code called `findAndAssignBestNGO` here directly.
+    let assignment = null;
+    let score = null;
+    let assignmentMsg = "Food listing created (waiting for assignment)";
+
+    // Try standard assignment if available
+    if (food.status === 'available') {
+      const result = await findAndAssignBestNGO(food);
+      if (result.assignment) {
+        assignment = result.assignment;
+        score = result.score;
+        assignmentMsg = "Food listing created and assigned";
+      }
+    }
+
+    const finalFood = await Food.findById(food._id).populate("assignedNgo", "name lat lng contact");
+
     res.status(201).json({
-      message: "Food listing created and assigned",
-      food: await food.populate("assignedNgo", "name lat lng contact"),
+      message: assignmentMsg,
+      food: withUrgency(finalFood),
       assignment,
-      score
+      score,
+      autoTriggered: false
     });
   } catch (error) {
     next(error);
@@ -58,7 +99,10 @@ const getAllFood = async (req, res, next) => {
       .populate("assignedNgo", "name lat lng")
       .sort({ createdAt: -1 });
 
-    res.status(200).json({ count: foods.length, foods });
+    // Inject Urgency & Sort by Urgency Descending
+    const foodsWithUrgency = foods.map(withUrgency).sort((a, b) => b.urgencyScore - a.urgencyScore);
+
+    res.status(200).json({ count: foodsWithUrgency.length, foods: foodsWithUrgency });
   } catch (error) {
     next(error);
   }
@@ -74,7 +118,7 @@ const getFoodById = async (req, res, next) => {
       return sendError(res, 404, "Food listing not found", "NOT_FOUND");
     }
 
-    res.status(200).json({ food });
+    res.status(200).json({ food: withUrgency(food) });
   } catch (error) {
     next(error);
   }
@@ -112,7 +156,7 @@ const updateFoodStatus = async (req, res, next) => {
       return sendError(res, 404, "Food listing not found", "NOT_FOUND");
     }
 
-    res.status(200).json({ message: "Food status updated", food });
+    res.status(200).json({ message: "Food status updated", food: withUrgency(food) });
   } catch (error) {
     next(error);
   }
@@ -144,7 +188,7 @@ const deleteFood = async (req, res, next) => {
       return sendError(res, 404, "Food listing not found", "NOT_FOUND");
     }
 
-    res.status(200).json({ message: "Food listing deleted", food });
+    res.status(200).json({ message: "Food listing deleted", food: withUrgency(food) });
   } catch (error) {
     next(error);
   }

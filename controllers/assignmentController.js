@@ -17,7 +17,7 @@ const buildError = (message, statusCode, code) => {
 
 const getFoodUpdateForStatus = (status) => {
   if (status === "rejected") {
-    return { status: "available", assignedNgo: null };
+    return { status: "available", assignedNgo: null, isAutoAssigned: false };
   }
   if (status === "completed") {
     return { status: "delivered" };
@@ -32,8 +32,9 @@ const getFoodUpdateForStatus = (status) => {
 };
 
 // Helper function to find best NGO and create assignment
-const findAndAssignBestNGO = async (foodInput) => {
+const findAndAssignBestNGO = async (foodInput, options = {}) => {
   const foodId = foodInput?._id || foodInput;
+  const { autoAssign = false } = options;
   const session = await mongoose.startSession();
 
   try {
@@ -100,7 +101,13 @@ const findAndAssignBestNGO = async (foodInput) => {
     // Conditional update prevents double-assignment under race.
     const foodUpdateResult = await Food.updateOne(
       { _id: food._id, status: "available" },
-      { $set: { status: "assigned", assignedNgo: bestNgo._id } },
+      {
+        $set: {
+          status: "assigned",
+          assignedNgo: bestNgo._id,
+          isAutoAssigned: autoAssign
+        }
+      },
       { session }
     );
 
@@ -143,6 +150,7 @@ const findAndAssignBestNGO = async (foodInput) => {
       assignmentId: String(assignment._id),
       foodId: String(food._id),
       ngoId: String(bestNgo._id),
+      autoAssign
     });
 
     return {
