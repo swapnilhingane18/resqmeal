@@ -77,6 +77,37 @@ export default function ImpactDashboard() {
   const [emergencyCount, setEmergencyCount] = useState(0);
   const [criticalCount, setCriticalCount] = useState(0);
 
+  // Scan State
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+
+  const handleEmergencyScan = async () => {
+    try {
+      setScanning(true);
+      const res = await api.post("/emergency/scan");
+      const data = res.data?.data;
+      setScanResult(data);
+
+      // Refresh Dashboard Data
+      // We can trigger a re-mount or just re-fetch. 
+      // For simplicity, let's reload window or re-fetch if we extracted fetch logic.
+      // Since fetchDashboard is inside useEffect, we can't easily call it. 
+      // We'll just reload for Hackathon speed as per "Refresh dashboard and NGO feed" requirement.
+      // Or better, we can move fetchDashboard out.
+      // Let's just show the toast and reload after a delay.
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+
+    } catch (err) {
+      console.error("Scan failed:", err);
+      setError("Emergency scan failed. Please try again.");
+    } finally {
+      setScanning(false);
+    }
+  };
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -234,13 +265,45 @@ export default function ImpactDashboard() {
         </div>
       )}
 
+      {/* EMERGENCY SCAN BUTTON & RESULT */}
+      <div className="flex flex-col items-center justify-center mb-8">
+        <button
+          onClick={handleEmergencyScan}
+          disabled={scanning}
+          className={`
+              relative px-8 py-4 rounded-full font-bold text-white text-lg shadow-xl transition-all transform hover:scale-105 active:scale-95
+              ${scanning
+              ? "bg-neutral-400 cursor-not-allowed"
+              : "bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 animate-pulse-slow"
+            }
+            `}
+        >
+          {scanning ? (
+            <span className="flex items-center gap-2">
+              <Spinner className="w-5 h-5 text-white" /> Scanning...
+            </span>
+          ) : (
+            <span className="flex items-center gap-2">
+              🚨 Run Emergency Rescue Scan
+            </span>
+          )}
+        </button>
+
+        {scanResult && (
+          <div className="mt-4 p-4 bg-green-100 border border-green-200 text-green-800 rounded-lg shadow-sm text-center fade-in">
+            <strong>Scan Complete!</strong> <br />
+            Scanned: {scanResult.scannedItems} | Rescued: {scanResult.autoAssignedCount} | Time: {scanResult.scanDurationMs}ms
+          </div>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5 mb-12">
         {SUMMARY_CARDS.map((card) => (
           <div
             key={card.key}
             className={`card transition-all duration-300 ${card.highlighted
-                ? "border-red-200 bg-red-50/70 shadow-lg shadow-red-100/60"
-                : "border-neutral-100 shadow-lg shadow-neutral-100/50"
+              ? "border-red-200 bg-red-50/70 shadow-lg shadow-red-100/60"
+              : "border-neutral-100 shadow-lg shadow-neutral-100/50"
               }`}
           >
             <div className={`text-sm font-semibold ${card.highlighted ? "text-red-700" : "text-neutral-500"}`}>
