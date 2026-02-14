@@ -14,3 +14,43 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## 🚀 Setup Instructions
+
+1. Clone the repository:
+
+   git clone https://github.com/swapnilhingane18/resqmeal.git
+
+2. Navigate into the project:
+
+   cd resqmeal
+
+3. Copy environment file:
+
+   Copy `.env.example` → `.env`
+
+4. Update values inside `.env` (Mongo URI, JWT secret, etc.)
+
+5. Install dependencies:
+
+   npm install
+
+6. Start development server:
+
+   npm run dev
+
+
+---
+
+## 🔍 API Health Check
+
+Endpoint:
+
+GET /health
+
+Example Response:
+
+{
+  "status": "OK",
+  "dbState": "connected"
+}
