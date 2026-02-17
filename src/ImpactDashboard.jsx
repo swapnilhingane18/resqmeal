@@ -15,7 +15,6 @@ import { useEffect, useRef, useState } from "react";
 import { parseISO, formatDistanceToNow } from "date-fns";
 import { useAuth } from "./hooks/useAuth";
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
-import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import api from "./api/axios";
 import { foodAPI, assignmentAPI } from "./api";
 import Spinner from "./components/ui/Spinner";
@@ -37,6 +36,8 @@ const getDayKey = (value) => {
   if (Number.isNaN(date.getTime())) return null;
   return date.toISOString().slice(0, 10);
 };
+
+const optionalToString = (val) => (val ? String(val) : "");
 
 const buildTrendData = (foods, assignments) => {
   const foodByDay = {};
@@ -65,7 +66,16 @@ const buildTrendData = (foods, assignments) => {
 
 export default function ImpactDashboard() {
   const { user, role } = useAuth();
-  const isNGO = role === "NGO" || role === "ADMIN";
+
+  // ROBUST ROLE CHECK
+  // Handle both direct role and user.role, normalize to lowercase
+  const rawRole = role || user?.role;
+  const normalizedRole = String(rawRole || "").toLowerCase();
+
+  // Debug log (can be removed later, but helpful now)
+  // console.log("ImpactDashboard Role Check:", { rawRole, normalizedRole });
+
+  const isNGO = ["ngo", "admin"].includes(normalizedRole);
 
   const kpiChartRef = useRef(null);
   const urgencyChartRef = useRef(null);

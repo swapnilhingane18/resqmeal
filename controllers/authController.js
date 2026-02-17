@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const NGO = require('../models/NGO');
 const { sendError } = require('../utils/errorResponse');
 
 const normalizeRole = (inputRole) => {
@@ -56,6 +57,26 @@ const registerUser = async (req, res) => {
         });
 
         if (user) {
+            // AUTOMATIC NGO PROFILE CREATION
+            if (normalizedRole === 'NGO') {
+                try {
+                    await NGO.create({
+                        user: user._id,
+                        name: user.name,
+                        email: user.email,
+                        contact: "Not Provided", // Default to avoid validation error
+                        lat: 18.5204, // Default Coordinates (e.g. Pune)
+                        lng: 73.8567,
+                        status: "active"
+                    });
+                } catch (ngoError) {
+                    console.error("NGO Profile Creation Failed:", ngoError);
+                    // Rollback User Creation to maintain consistency
+                    await User.findByIdAndDelete(user._id);
+                    return sendError(res, 500, 'Failed to create NGO profile', 'NGO_CREATION_FAILED');
+                }
+            }
+
             res.status(201).json({
                 _id: user.id,
                 name: user.name,
