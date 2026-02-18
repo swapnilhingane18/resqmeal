@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const NGO = require('../models/NGO');
 const { sendError } = require('../utils/errorResponse');
@@ -48,45 +49,64 @@ const registerUser = async (req, res) => {
             return sendError(res, 409, 'User with this email already exists', 'DUPLICATE_RESOURCE');
         }
 
-        // Create user
-        const user = await User.create({
-            name: normalizedName,
-            email: normalizedEmail,
-            password: normalizedPassword,
-            role: normalizedRole
-        });
+        // Create user (and NGO profile if applicable) inside a transaction
+        const session = await mongoose.startSession();
+        let user;
 
-        if (user) {
-            // AUTOMATIC NGO PROFILE CREATION
+        try {
+            session.startTransaction();
+
+            // User.create with session returns an array when passed an array
+            const [createdUser] = await User.create(
+                [{
+                    name: normalizedName,
+                    email: normalizedEmail,
+                    password: normalizedPassword,
+                    role: normalizedRole
+                }],
+                { session }
+            );
+            user = createdUser;
+
+            if (!user) {
+                await session.abortTransaction();
+                return sendError(res, 400, 'Invalid user data', 'VALIDATION_ERROR');
+            }
+
+            // AUTOMATIC NGO PROFILE CREATION — inside the same transaction
             if (normalizedRole === 'NGO') {
-                try {
-                    await NGO.create({
+                await NGO.create(
+                    [{
                         user: user._id,
                         name: user.name,
                         email: user.email,
-                        contact: "Not Provided", // Default to avoid validation error
-                        lat: 18.5204, // Default Coordinates (e.g. Pune)
+                        contact: 'Not Provided',
+                        lat: 18.5204,   // Default coordinates (Pune)
                         lng: 73.8567,
-                        status: "active"
-                    });
-                } catch (ngoError) {
-                    console.error("NGO Profile Creation Failed:", ngoError);
-                    // Rollback User Creation to maintain consistency
-                    await User.findByIdAndDelete(user._id);
-                    return sendError(res, 500, 'Failed to create NGO profile', 'NGO_CREATION_FAILED');
-                }
+                        status: 'active',
+                        capacity: 100
+                    }],
+                    { session }
+                );
             }
 
-            res.status(201).json({
-                _id: user.id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                token: generateToken(user._id)
-            });
-        } else {
-            return sendError(res, 400, 'Invalid user data', 'VALIDATION_ERROR');
+            await session.commitTransaction();
+        } catch (txError) {
+            if (session.inTransaction()) {
+                await session.abortTransaction();
+            }
+            throw txError; // Re-throw so the outer catch handles it
+        } finally {
+            session.endSession();
         }
+
+        res.status(201).json({
+            _id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            token: generateToken(user._id)
+        });
     } catch (error) {
         console.error('Register Error:', error.stack || error.message);
 

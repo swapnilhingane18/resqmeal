@@ -218,14 +218,45 @@ const getAllAssignments = async (req, res, next) => {
 
     if (req.user.role === "NGO") {
       const ngo = await NGO.findOne({ user: req.user.id });
+      // Defensive: if no NGO profile exists, return empty list instead of 404
       if (!ngo) {
-        return sendError(res, 404, "NGO profile not found for this user", "NOT_FOUND");
+        return res.status(200).json({ count: 0, assignments: [] });
       }
       query.ngo = ngo._id;
     } else if (req.user.role === "DONOR") {
       const foods = await Food.find({ "donor.user": req.user.id }).select("_id");
       query.food = { $in: foods.map((f) => f._id) };
     }
+
+    const assignments = await Assignment.find(query)
+      .populate("food", "type quantity unit expiresAt status description")
+      .populate("ngo", "name lat lng contact")
+      .sort({ assignedAt: -1 });
+
+    return res.status(200).json({ count: assignments.length, assignments });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// Get assignments for the currently authenticated NGO user
+const getMyAssignments = async (req, res, next) => {
+  try {
+    const { status } = req.query;
+    if (status && !ASSIGNMENT_STATUSES.includes(status)) {
+      return sendError(res, 400, "Invalid status filter", "VALIDATION_ERROR");
+    }
+
+    // Find the NGO profile linked to this user
+    const ngo = await NGO.findOne({ user: req.user.id });
+
+    // Defensive: legacy NGO users without a profile get an empty list, not a crash
+    if (!ngo) {
+      return res.status(200).json({ count: 0, assignments: [] });
+    }
+
+    const query = { ngo: ngo._id };
+    if (status) query.status = status;
 
     const assignments = await Assignment.find(query)
       .populate("food", "type quantity unit expiresAt status description")
@@ -342,6 +373,7 @@ const updateAssignmentStatus = async (req, res, next) => {
 module.exports = {
   assignFood,
   getAllAssignments,
+  getMyAssignments,
   getAssignmentById,
   updateAssignmentStatus,
   findAndAssignBestNGO,
