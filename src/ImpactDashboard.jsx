@@ -98,6 +98,20 @@ export default function ImpactDashboard() {
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
 
+  // Flashing State
+  const [flashEmergency, setFlashEmergency] = useState(false);
+  const prevRescuesRef = useRef(null);
+  const currentEmergencyRescues = emergencyCount + (scanResult?.autoAssignedCount || 0);
+
+  useEffect(() => {
+    if (prevRescuesRef.current !== null && currentEmergencyRescues > prevRescuesRef.current) {
+      setFlashEmergency(true);
+      const timer = setTimeout(() => setFlashEmergency(false), 800);
+      return () => clearTimeout(timer);
+    }
+    prevRescuesRef.current = currentEmergencyRescues;
+  }, [currentEmergencyRescues]);
+
   const handleEmergencyScan = async () => {
     try {
       setScanning(true);
@@ -265,8 +279,8 @@ export default function ImpactDashboard() {
 
       {/* EMERGENCY ALERT BANNER */}
       {emergencyCount > 0 && (
-        <div className="mb-8 rounded-xl border border-red-200 bg-red-100 px-6 py-4 flex items-center gap-4 animate-pulse shadow-md shadow-red-50">
-          <span className="text-3xl">🚨</span>
+        <div className="mb-8 rounded-xl border border-red-200 bg-red-100 px-6 py-4 flex items-center gap-4 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.7)] animate-shake transition-all duration-300 ease-in-out">
+          <span className="text-3xl animate-siren">🚨</span>
           <div>
             <h3 className="text-lg font-bold text-red-800">Emergency Rescue Active</h3>
             <p className="text-red-700">
@@ -289,16 +303,16 @@ export default function ImpactDashboard() {
             onClick={handleEmergencyScan}
             disabled={scanning}
             className={`
-                relative px-8 py-4 rounded-full font-bold text-white text-lg shadow-xl transition-all transform hover:scale-105 active:scale-95
+                relative px-8 py-4 rounded-full font-bold text-white text-lg shadow-xl transition-all duration-300 ease-in-out transform active:scale-95
                 ${scanning
-                ? "bg-neutral-400 cursor-not-allowed"
-                : "bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 animate-pulse-slow"
+                ? "bg-red-600 scale-105 shadow-[0_0_20px_rgba(239,68,68,0.8)] cursor-not-allowed animate-pulse"
+                : "bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 hover:scale-105 animate-pulse-slow"
               }
               `}
           >
             {scanning ? (
               <span className="flex items-center gap-2">
-                <Spinner className="w-5 h-5 text-white" /> Scanning...
+                <Spinner className="w-5 h-5 text-white animate-spin" /> Scanning...
               </span>
             ) : (
               <span className="flex items-center gap-2">
@@ -308,7 +322,7 @@ export default function ImpactDashboard() {
           </button>
 
           {scanResult && (
-            <div className="mt-4 p-4 bg-green-100 border border-green-200 text-green-800 rounded-lg shadow-sm text-center fade-in">
+            <div className="mt-4 p-4 bg-green-100 border border-green-200 text-green-800 rounded-lg shadow-sm text-center fade-in transition-all duration-300 ease-in-out">
               <strong>Scan Complete!</strong> <br />
               Scanned: <CountUp end={scanResult.scannedItems} duration={1} /> |
               Rescued: <CountUp end={scanResult.autoAssignedCount} duration={1} /> |
@@ -332,10 +346,10 @@ export default function ImpactDashboard() {
             {summary ? <CountUp end={(summary.totalFood || 0) * 5} duration={1.5} separator="," /> : "--"}
           </div>
         </div>
-        <div className="p-6 bg-gradient-to-br from-pink-500 to-rose-600 rounded-2xl shadow-lg text-white text-center transform hover:scale-105 transition-transform">
+        <div className={`p-6 rounded-2xl shadow-lg text-white text-center transform transition-all duration-300 ease-in-out ${flashEmergency ? 'bg-red-500 scale-110 shadow-[0_0_20px_rgba(239,68,68,0.8)]' : 'bg-gradient-to-br from-pink-500 to-rose-600 hover:scale-105'}`}>
           <div className="text-sm font-medium opacity-90 mb-1">Emergency Rescues</div>
           <div className="text-3xl font-extrabold">
-            <CountUp end={emergencyCount + (scanResult?.autoAssignedCount || 0)} duration={1.5} />
+            <CountUp end={currentEmergencyRescues} duration={1.5} />
           </div>
         </div>
         <div className="p-6 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl shadow-lg text-white text-center transform hover:scale-105 transition-transform">

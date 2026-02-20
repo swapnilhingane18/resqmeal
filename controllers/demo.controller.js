@@ -2,17 +2,26 @@ const User = require("../models/User");
 const NGO = require("../models/NGO");
 const Food = require("../models/Food");
 const Assignment = require("../models/Assignment");
+const { checkAndTriggerAutoAssignment } = require("../services/emergencyTrigger.service");
 
+// ----------------------
+// EXISTING SUMMARY API
+// ----------------------
 const getSummary = async (req, res, next) => {
   try {
-    const [totalDonors, totalNGOs, totalFood, totalAssignments, assignedFoodIds] =
-      await Promise.all([
-        User.countDocuments({ role: { $in: ["DONOR", "donor"] } }),
-        User.countDocuments({ role: { $in: ["NGO", "ngo"] } }),
-        Food.countDocuments({}),
-        Assignment.countDocuments({}),
-        Assignment.distinct("food"),
-      ]);
+    const [
+      totalDonors,
+      totalNGOs,
+      totalFood,
+      totalAssignments,
+      assignedFoodIds,
+    ] = await Promise.all([
+      User.countDocuments({ role: { $in: ["DONOR", "donor"] } }),
+      User.countDocuments({ role: { $in: ["NGO", "ngo"] } }),
+      Food.countDocuments({}),
+      Assignment.countDocuments({}),
+      Assignment.distinct("food"),
+    ]);
 
     const unassignedFood = await Food.countDocuments({
       $or: [
@@ -33,6 +42,9 @@ const getSummary = async (req, res, next) => {
   }
 };
 
+// ----------------------
+// EXISTING MAP API
+// ----------------------
 const getMapData = async (req, res, next) => {
   try {
     const [donorDocs, ngoDocs, foodDocs] = await Promise.all([
@@ -76,7 +88,144 @@ const getMapData = async (req, res, next) => {
   }
 };
 
+// ----------------------
+// 🎭 MAX DRAMA DEMO SEED
+// ----------------------
+const loadPresentationData = async (req, res, next) => {
+  try {
+    // Clear all data
+    await Assignment.deleteMany({});
+    await Food.deleteMany({});
+    await NGO.deleteMany({});
+    await User.deleteMany({});
+
+    // Create Donors
+    const donor1 = await User.create({
+      name: "Demo Donor 1",
+      email: "donor1@demo.com",
+      password: "password123",
+      role: "DONOR",
+    });
+
+    const donor2 = await User.create({
+      name: "Demo Donor 2",
+      email: "donor2@demo.com",
+      password: "password123",
+      role: "DONOR",
+    });
+
+    // Create NGO Users
+    const ngoUser1 = await User.create({
+      name: "Demo NGO 1",
+      email: "ngo1@demo.com",
+      password: "password123",
+      role: "NGO",
+    });
+
+    const ngoUser2 = await User.create({
+      name: "Demo NGO 2",
+      email: "ngo2@demo.com",
+      password: "password123",
+      role: "NGO",
+    });
+
+    // Create NGO Profiles
+    await NGO.create({
+      name: "Demo NGO 1 Foundation",
+      lat: 19.076,
+      lng: 72.877,
+      contact: "1234567890",
+      capacity: 200,
+      status: "active",
+      user: ngoUser1._id,
+    });
+
+    await NGO.create({
+      name: "Demo NGO 2 Relief",
+      lat: 19.080,
+      lng: 72.880,
+      contact: "0987654321",
+      capacity: 200,
+      status: "active",
+      user: ngoUser2._id,
+    });
+
+    const now = Date.now();
+    const HOUR = 60 * 60 * 1000;
+
+    // Create 6 Foods
+    const foods = await Food.insertMany([
+      // EMERGENCY (1 auto, 1 manual)
+      {
+        type: "cooked",
+        quantity: 50,
+        lat: 19.075,
+        lng: 72.875,
+        expiresAt: new Date(now + 1 * HOUR),
+        donor: { user: donor1._id },
+      },
+      {
+        type: "prepared",
+        quantity: 60,
+        lat: 19.078,
+        lng: 72.878,
+        expiresAt: new Date(now + 1.5 * HOUR),
+        donor: { user: donor2._id },
+      },
+
+      // CRITICAL
+      {
+        type: "packaged",
+        quantity: 100,
+        lat: 19.081,
+        lng: 72.881,
+        expiresAt: new Date(now + 6 * HOUR),
+        donor: { user: donor1._id },
+      },
+      {
+        type: "cooked",
+        quantity: 40,
+        lat: 19.072,
+        lng: 72.872,
+        expiresAt: new Date(now + 8 * HOUR),
+        donor: { user: donor2._id },
+      },
+
+      // STABLE
+      {
+        type: "raw",
+        quantity: 20,
+        lat: 19.085,
+        lng: 72.885,
+        expiresAt: new Date(now + 50 * HOUR),
+        donor: { user: donor1._id },
+      },
+      {
+        type: "raw",
+        quantity: 25,
+        lat: 19.088,
+        lng: 72.888,
+        expiresAt: new Date(now + 72 * HOUR),
+        donor: { user: donor2._id },
+      },
+    ]);
+
+    // 🔥 MAX DRAMA MODE
+    await checkAndTriggerAutoAssignment(foods[0]);
+
+    const assignmentsCreated = await Assignment.countDocuments();
+
+    res.status(201).json({
+      message: "Presentation dataset loaded",
+      assignmentsCreated,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getSummary,
   getMapData,
+  loadPresentationData,
 };
