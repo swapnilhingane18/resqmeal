@@ -116,10 +116,50 @@ const deleteNGO = async (req, res, next) => {
   }
 };
 
+// Get current NGO profile
+const getMe = async (req, res, next) => {
+  try {
+    const ngo = await NGO.findOne({ user: req.user.id });
+    if (!ngo) {
+      return sendError(res, 404, "NGO profile not found", "NOT_FOUND");
+    }
+    res.status(200).json({ ngo });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Update NGO status (Online/Offline)
+const updateNGOStatus = async (req, res, next) => {
+  try {
+    const { status } = req.body;
+
+    if (!["active", "inactive"].includes(status)) {
+      return sendError(res, 400, "Invalid status. Must be 'active' or 'inactive'", "VALIDATION_ERROR");
+    }
+
+    const ngo = await NGO.findOneAndUpdate(
+      { user: req.user.id },
+      { status },
+      { new: true, runValidators: true }
+    );
+
+    if (!ngo) {
+      return sendError(res, 404, "NGO profile not found", "NOT_FOUND");
+    }
+
+    res.status(200).json({ message: "NGO status updated", ngo });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createNGO,
   getAllNGOs,
   getNGOById,
   updateNGO,
-  deleteNGO
+  deleteNGO,
+  getMe,
+  updateNGOStatus
 };

@@ -98,6 +98,10 @@ export default function ImpactDashboard() {
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
 
+  // NGO Status State
+  const [ngoProfile, setNgoProfile] = useState(null);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+
   // Flashing State
   const [flashEmergency, setFlashEmergency] = useState(false);
   const prevRescuesRef = useRef(null);
@@ -112,30 +116,94 @@ export default function ImpactDashboard() {
     prevRescuesRef.current = currentEmergencyRescues;
   }, [currentEmergencyRescues]);
 
-  const handleEmergencyScan = async () => {
+  const handleEmergencyScan = async (e) => {
+    if (e) e.preventDefault();
     try {
       setScanning(true);
       const res = await api.post("/emergency/scan");
       const data = res.data?.data;
       setScanResult(data);
 
-      // Refresh Dashboard Data
-      // We can trigger a re-mount or just re-fetch. 
-      // For simplicity, let's reload window or re-fetch if we extracted fetch logic.
-      // Since fetchDashboard is inside useEffect, we can't easily call it. 
-      // We'll just reload for Hackathon speed as per "Refresh dashboard and NGO feed" requirement.
-      // Or better, we can move fetchDashboard out.
-      // Let's just show the toast and reload after a delay.
-
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-
+      // Refresh Dashboard Data dynamically without page reload
+      await fetchDashboard();
     } catch (err) {
       console.error("Scan failed:", err);
       setError("Emergency scan failed. Please try again.");
     } finally {
       setScanning(false);
+    }
+  };
+
+  const fetchDashboard = async () => {
+    try {
+      setError("");
+
+      const [summaryRes, foodRes, assignmentRes, ngoRes] = await Promise.all([
+        api.get("/demo/summary"),
+        foodAPI.getAll(),
+        assignmentAPI.getMyAssignments(),
+        isNGO ? api.get("/ngo/me").catch(() => null) : Promise.resolve(null),
+      ]);
+
+      setSummary(summaryRes.data || null);
+      if (ngoRes?.data?.ngo) {
+        setNgoProfile(ngoRes.data.ngo);
+      }
+
+      try {
+        const mapRes = await api.get("/demo/map-data");
+        setMapData(mapRes.data || null);
+      } catch (mapError) {
+        console.error("Map data fetch error:", mapError);
+        setMapData({ donors: [], ngos: [], food: [] });
+      }
+
+      const foods = Array.isArray(foodRes?.foods) ? foodRes.foods : [];
+      const assignments = Array.isArray(assignmentRes?.assignments) ? assignmentRes.assignments : [];
+      setTrendData(buildTrendData(foods, assignments));
+
+      let high = 0;
+      let medium = 0;
+      let low = 0;
+      let emergency = 0;
+      let critical = 0;
+
+      foods.forEach((food) => {
+        // Use API provided Urgency Level if available, else fallback
+        if (food.urgencyLevel === "EMERGENCY") emergency++;
+        if (food.urgencyLevel === "CRITICAL") critical++;
+
+        // Legacy chart buckets
+        const hoursLeft = (new Date(food.expiresAt) - new Date()) / (1000 * 60 * 60);
+        if (hoursLeft < 6) high += 1;
+        else if (hoursLeft < 24) medium += 1;
+        else low += 1;
+      });
+
+      setEmergencyCount(emergency);
+      setCriticalCount(critical);
+
+      setUrgencyData([
+        { name: "High Urgency (<6h)", value: high },
+        { name: "Medium Urgency (<24h)", value: medium },
+        { name: "Low Urgency (>24h)", value: low },
+      ]);
+
+      const recent = foods
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 3)
+        .map(
+          (food) =>
+            `${food.quantity} ${food.unit} ${food.type} listed in ${(food.description || "food donation").slice(0, 24)
+            }...`
+        );
+
+      setRecentActivity(recent);
+    } catch (err) {
+      console.error("Dashboard fetch error:", err);
+      setError(err.response?.data?.message || err.message || "Failed to load dashboard data");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -182,76 +250,21 @@ export default function ImpactDashboard() {
     };
   }, [mounted]);
 
+  const toggleNgoStatus = async () => {
+    if (!ngoProfile) return;
+    try {
+      setStatusUpdating(true);
+      const newStatus = ngoProfile.status === "active" ? "inactive" : "active";
+      const res = await api.patch("/ngo/status", { status: newStatus });
+      setNgoProfile(res.data?.ngo || { ...ngoProfile, status: newStatus });
+    } catch (err) {
+      console.error("Failed to update status", err);
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        setError("");
-
-        const [summaryRes, foodRes, assignmentRes] = await Promise.all([
-          api.get("/demo/summary"),
-          foodAPI.getAll(),
-          assignmentAPI.getMyAssignments(),
-        ]);
-
-        setSummary(summaryRes.data || null);
-
-        try {
-          const mapRes = await api.get("/demo/map-data");
-          setMapData(mapRes.data || null);
-        } catch (mapError) {
-          console.error("Map data fetch error:", mapError);
-          setMapData({ donors: [], ngos: [], food: [] });
-        }
-
-        const foods = Array.isArray(foodRes?.foods) ? foodRes.foods : [];
-        const assignments = Array.isArray(assignmentRes?.assignments) ? assignmentRes.assignments : [];
-        setTrendData(buildTrendData(foods, assignments));
-
-        let high = 0;
-        let medium = 0;
-        let low = 0;
-        let emergency = 0;
-        let critical = 0;
-
-        foods.forEach((food) => {
-          // Use API provided Urgency Level if available, else fallback
-          if (food.urgencyLevel === "EMERGENCY") emergency++;
-          if (food.urgencyLevel === "CRITICAL") critical++;
-
-          // Legacy chart buckets
-          const hoursLeft = (new Date(food.expiresAt) - new Date()) / (1000 * 60 * 60);
-          if (hoursLeft < 6) high += 1;
-          else if (hoursLeft < 24) medium += 1;
-          else low += 1;
-        });
-
-        setEmergencyCount(emergency);
-        setCriticalCount(critical);
-
-        setUrgencyData([
-          { name: "High Urgency (<6h)", value: high },
-          { name: "Medium Urgency (<24h)", value: medium },
-          { name: "Low Urgency (>24h)", value: low },
-        ]);
-
-        const recent = foods
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-          .slice(0, 3)
-          .map(
-            (food) =>
-              `${food.quantity} ${food.unit} ${food.type} listed in ${(food.description || "food donation").slice(0, 24)
-              }...`
-          );
-
-        setRecentActivity(recent);
-      } catch (err) {
-        console.error("Dashboard fetch error:", err);
-        setError(err.response?.data?.message || err.message || "Failed to load dashboard data");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchDashboard();
   }, []);
 
@@ -265,7 +278,7 @@ export default function ImpactDashboard() {
 
   return (
     <div className="container-custom py-10 fade-in">
-      <div className="text-center mb-12">
+      <div className="text-center mb-12 relative">
         <div className="inline-flex items-center gap-2 bg-green-50 border border-green-100 rounded-full px-4 py-1.5 mb-4">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
@@ -275,19 +288,44 @@ export default function ImpactDashboard() {
         </div>
         <h2 className="text-4xl font-extrabold text-neutral-900 tracking-tight">Impact Dashboard</h2>
         <p className="text-neutral-500 mt-2 text-lg">Real-time metrics on food rescue operations</p>
+
+        {isNGO && ngoProfile && (
+          <div className="mt-6 flex items-center justify-center gap-4">
+            <div className={`px-4 py-1.5 rounded-full border text-sm font-bold flex items-center gap-2 shadow-sm ${ngoProfile.status === "active" ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"}`}>
+              {ngoProfile.status === "active" ? "🟢 Online" : "🔴 Offline"}
+            </div>
+            <button
+              type="button"
+              onClick={toggleNgoStatus}
+              disabled={statusUpdating}
+              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all border shadow-sm ${ngoProfile.status === "active" ? "bg-white text-gray-700 hover:bg-gray-50 border-gray-300" : "bg-green-600 text-white hover:bg-green-700 border-green-600"}`}
+            >
+              {statusUpdating ? "Updating..." : (ngoProfile.status === "active" ? "Go Offline" : "Go Online")}
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* EMERGENCY ALERT BANNER */}
-      {emergencyCount > 0 && (
-        <div className="mb-8 rounded-xl border border-red-200 bg-red-100 px-6 py-4 flex items-center gap-4 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.7)] animate-shake transition-all duration-300 ease-in-out">
-          <span className="text-3xl animate-siren">🚨</span>
-          <div>
-            <h3 className="text-lg font-bold text-red-800">Emergency Rescue Active</h3>
-            <p className="text-red-700">
-              {emergencyCount} food items are in the EMERGENCY rescue window and being prioritized!
-            </p>
-          </div>
+      {/* EMERGENCY ALERT & OFFLINE BANNER */}
+      {isNGO && ngoProfile?.status === "inactive" ? (
+        <div className="mb-8 rounded-xl border border-gray-300 bg-gray-100 px-6 py-4 flex flex-col items-center justify-center gap-2 shadow-sm fade-in text-center transition-all">
+          <h3 className="text-xl font-bold text-gray-800">🔴 You are currently offline.</h3>
+          <p className="text-gray-600 text-lg">
+            The AI engine will not dispatch emergency food to you.
+          </p>
         </div>
+      ) : (
+        emergencyCount > 0 && (
+          <div className="mb-8 rounded-xl border border-red-200 bg-red-100 px-6 py-4 flex items-center gap-4 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.7)] animate-shake transition-all duration-300 ease-in-out">
+            <span className="text-3xl animate-siren">🚨</span>
+            <div>
+              <h3 className="text-lg font-bold text-red-800">Emergency Rescue Active</h3>
+              <p className="text-red-700">
+                {emergencyCount} food items are in the EMERGENCY rescue window and being prioritized!
+              </p>
+            </div>
+          </div>
+        )
       )}
 
       {error && (
@@ -299,29 +337,42 @@ export default function ImpactDashboard() {
       {/* EMERGENCY SCAN BUTTON & RESULT - NGO/ADMIN ONLY */}
       {isNGO && (
         <div className="flex flex-col items-center justify-center mb-12">
-          <button
-            onClick={handleEmergencyScan}
-            disabled={scanning}
-            className={`
-                relative px-8 py-4 rounded-full font-bold text-white text-lg shadow-xl transition-all duration-300 ease-in-out transform active:scale-95
-                ${scanning
-                ? "bg-red-600 scale-105 shadow-[0_0_20px_rgba(239,68,68,0.8)] cursor-not-allowed animate-pulse"
-                : "bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 hover:scale-105 animate-pulse-slow"
-              }
-              `}
-          >
-            {scanning ? (
-              <span className="flex items-center gap-2">
-                <Spinner className="w-5 h-5 text-white animate-spin" /> Scanning...
-              </span>
-            ) : (
+          {ngoProfile?.status === "inactive" ? (
+            <button
+              type="button"
+              disabled={true}
+              className="relative px-8 py-4 rounded-full font-bold text-gray-400 bg-gray-200 text-lg shadow-sm cursor-not-allowed transition-all"
+            >
               <span className="flex items-center gap-2">
                 🚨 Run Emergency Rescue Scan
               </span>
-            )}
-          </button>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleEmergencyScan}
+              disabled={scanning}
+              className={`
+                  relative px-8 py-4 rounded-full font-bold text-white text-lg shadow-xl transition-all duration-300 ease-in-out transform active:scale-95
+                  ${scanning
+                  ? "bg-red-600 scale-105 shadow-[0_0_20px_rgba(239,68,68,0.8)] cursor-not-allowed animate-pulse"
+                  : "bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 hover:scale-105 animate-pulse-slow"
+                }
+                `}
+            >
+              {scanning ? (
+                <span className="flex items-center gap-2">
+                  <Spinner className="w-5 h-5 text-white animate-spin" /> Scanning...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  🚨 Run Emergency Rescue Scan
+                </span>
+              )}
+            </button>
+          )}
 
-          {scanResult && (
+          {scanResult && ngoProfile?.status === "active" && (
             <div className="mt-4 p-4 bg-green-100 border border-green-200 text-green-800 rounded-lg shadow-sm text-center fade-in transition-all duration-300 ease-in-out">
               <strong>Scan Complete!</strong> <br />
               Scanned: <CountUp end={scanResult.scannedItems} duration={1} /> |
