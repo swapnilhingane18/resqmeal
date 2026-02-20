@@ -79,6 +79,7 @@ export default function ImpactDashboard() {
 
   const kpiChartRef = useRef(null);
   const urgencyChartRef = useRef(null);
+  const sirenRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [kpiContainerReady, setKpiContainerReady] = useState(false);
@@ -108,8 +109,19 @@ export default function ImpactDashboard() {
   const currentEmergencyRescues = emergencyCount + (scanResult?.autoAssignedCount || 0);
 
   useEffect(() => {
+    sirenRef.current = new Audio("/siren.mp3");
+    sirenRef.current.volume = 0.6;
+  }, []);
+
+  useEffect(() => {
     if (prevRescuesRef.current !== null && currentEmergencyRescues > prevRescuesRef.current) {
       setFlashEmergency(true);
+
+      if (sirenRef.current) {
+        sirenRef.current.currentTime = 0;
+        sirenRef.current.play().catch(() => { });
+      }
+
       const timer = setTimeout(() => setFlashEmergency(false), 800);
       return () => clearTimeout(timer);
     }
