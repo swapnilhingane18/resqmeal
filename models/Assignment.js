@@ -9,8 +9,12 @@ const assignmentSchema = new mongoose.Schema(
     },
     ngo: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "NGO",
-      required: [true, "NGO is required"]
+      ref: "NGO"
+    },
+    energyCenter: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "EnergyCenter",
+      default: null
     },
     score: {
       type: Number,
