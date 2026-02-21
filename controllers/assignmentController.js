@@ -168,7 +168,7 @@ const findAndAssignBestNGO = async (foodInput, options = {}) => {
           timeUrgency: bestScoreDetails.timeUrgency,
           responseScore: bestScoreDetails.responseScore,
           status: "pending",
-          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+          expiresAt: new Date(Date.now() + 5 * 60 * 1000),
         },
       ],
       { session }

@@ -8,6 +8,7 @@ const logger = require("./middleware/logger");
 const errorHandler = require("./middleware/errorHandler");
 const { sendError } = require("./utils/errorResponse");
 const { initExpiryCron, stopExpiryCron } = require("./services/expiryCron");
+const { processExpiredAssignments } = require("./services/reassignment/assignmentExpiry.service");
 const { normalizeAssignmentStatuses } = require("./services/statusMigration");
 
 const authRoutes = require("./routes/auth.routes");
@@ -138,6 +139,11 @@ const startServer = async () => {
     httpServer = app.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);
       console.log(`Health check: http://localhost:${PORT}/health`);
+
+      // Start 60-second assignment expiry monitor
+      setInterval(() => {
+        processExpiredAssignments();
+      }, 60000);
     });
 
     process.on("SIGINT", () => shutdown("SIGINT"));
