@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { triggerScan } = require("../controllers/emergency.controller");
 const { protect } = require("../middleware/authMiddleware");
+const { authorizeRoles } = require("../middleware/roleMiddleware");
 
 // Trigger manual scan
 // Ideally restricted to Admin or NGO, but "user" role check can be added if needed.
@@ -13,6 +14,6 @@ const { protect } = require("../middleware/authMiddleware");
 // I will just use `protect`. If the user has a `authorize` middleware, I'd use it.
 // Let's assume `protect` adds `req.user`.
 
-router.post("/scan", protect, triggerScan);
+router.post("/scan", protect, authorizeRoles('NGO', 'ADMIN'), triggerScan);
 
 module.exports = router;

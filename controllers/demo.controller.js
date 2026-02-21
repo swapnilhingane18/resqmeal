@@ -2,7 +2,7 @@ const User = require("../models/User");
 const NGO = require("../models/NGO");
 const Food = require("../models/Food");
 const Assignment = require("../models/Assignment");
-const { checkAndTriggerAutoAssignment } = require("../services/emergencyTrigger.service");
+const { autoAssignFood } = require("../services/reassignment/autoAssign.service");
 
 // ----------------------
 // EXISTING SUMMARY API
@@ -130,25 +130,29 @@ const loadPresentationData = async (req, res, next) => {
     });
 
     // Create NGO Profiles
-    await NGO.create({
+    const ngoProfile1 = await NGO.create({
       name: "Demo NGO 1 Foundation",
       lat: 19.076,
       lng: 72.877,
       contact: "1234567890",
+      email: "ngo1@demo.com",
       capacity: 200,
       status: "active",
       user: ngoUser1._id,
     });
+    console.log("Created NGO 1:", ngoProfile1);
 
-    await NGO.create({
+    const ngoProfile2 = await NGO.create({
       name: "Demo NGO 2 Relief",
       lat: 19.080,
       lng: 72.880,
       contact: "0987654321",
+      email: "ngo2@demo.com",
       capacity: 200,
       status: "active",
       user: ngoUser2._id,
     });
+    console.log("Created NGO 2:", ngoProfile2);
 
     const now = Date.now();
     const HOUR = 60 * 60 * 1000;
@@ -162,6 +166,7 @@ const loadPresentationData = async (req, res, next) => {
         lat: 19.075,
         lng: 72.875,
         expiresAt: new Date(now + 1 * HOUR),
+        foodExpiresAt: new Date(now + 3 * HOUR),
         donor: { user: donor1._id },
       },
       {
@@ -170,6 +175,7 @@ const loadPresentationData = async (req, res, next) => {
         lat: 19.078,
         lng: 72.878,
         expiresAt: new Date(now + 1.5 * HOUR),
+        foodExpiresAt: new Date(now + 3 * HOUR),
         donor: { user: donor2._id },
       },
 
@@ -180,6 +186,7 @@ const loadPresentationData = async (req, res, next) => {
         lat: 19.081,
         lng: 72.881,
         expiresAt: new Date(now + 6 * HOUR),
+        foodExpiresAt: new Date(now + 3 * HOUR),
         donor: { user: donor1._id },
       },
       {
@@ -188,6 +195,7 @@ const loadPresentationData = async (req, res, next) => {
         lat: 19.072,
         lng: 72.872,
         expiresAt: new Date(now + 8 * HOUR),
+        foodExpiresAt: new Date(now + 3 * HOUR),
         donor: { user: donor2._id },
       },
 
@@ -198,6 +206,7 @@ const loadPresentationData = async (req, res, next) => {
         lat: 19.085,
         lng: 72.885,
         expiresAt: new Date(now + 50 * HOUR),
+        foodExpiresAt: new Date(now + 3 * HOUR),
         donor: { user: donor1._id },
       },
       {
@@ -206,12 +215,15 @@ const loadPresentationData = async (req, res, next) => {
         lat: 19.088,
         lng: 72.888,
         expiresAt: new Date(now + 72 * HOUR),
+        foodExpiresAt: new Date(now + 3 * HOUR),
         donor: { user: donor2._id },
       },
     ]);
 
-    // 🔥 MAX DRAMA MODE
-    await checkAndTriggerAutoAssignment(foods[0]);
+    // 🔥 AUTO-ASSIGN ALL SEEDED FOODS
+    for (const food of foods) {
+      await autoAssignFood(food._id);
+    }
 
     const assignmentsCreated = await Assignment.countDocuments();
 

@@ -141,6 +141,61 @@ const NGOAssignmentsPage = () => {
                                     </div>
                                 )}
 
+                                {/* Donor Contact Details */}
+                                {assignment.food?.donor && (
+                                    <div className="mb-6 bg-blue-50 border border-blue-100 rounded-xl p-4">
+                                        <p className="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-3">Donor Contact</p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-neutral-700 mb-4">
+                                            {assignment.food.donor.name && (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-blue-400">👤</span>
+                                                    <span className="font-medium">{assignment.food.donor.name}</span>
+                                                </div>
+                                            )}
+                                            {assignment.food.donor.email && (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-blue-400">✉️</span>
+                                                    <a href={`mailto:${assignment.food.donor.email}`} className="text-blue-600 hover:underline">
+                                                        {assignment.food.donor.email}
+                                                    </a>
+                                                </div>
+                                            )}
+                                            {assignment.food.donor.contact && (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-blue-400">📞</span>
+                                                    <span>{assignment.food.donor.contact}</span>
+                                                </div>
+                                            )}
+                                            {assignment.food.lat != null && assignment.food.lng != null && (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-blue-400">📍</span>
+                                                    <span className="text-neutral-500 text-xs">{assignment.food.lat.toFixed(4)}, {assignment.food.lng.toFixed(4)}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {assignment.food.donor.contact && (
+                                                <a
+                                                    href={`tel:${assignment.food.donor.contact}`}
+                                                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm"
+                                                >
+                                                    📞 Call Donor
+                                                </a>
+                                            )}
+                                            {assignment.food.lat != null && assignment.food.lng != null && (
+                                                <a
+                                                    href={`https://www.google.com/maps?q=${assignment.food.lat},${assignment.food.lng}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm"
+                                                >
+                                                    🗺️ Open in Maps
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="flex flex-wrap gap-3 justify-end border-t border-neutral-100 pt-6">
                                     <Button
                                         size="sm"

@@ -35,12 +35,16 @@ const assignmentSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "accepted", "rejected", "completed", "expired"],
+      enum: ["pending", "accepted", "rejected", "timed_out", "completed", "cancelled"],
       default: "pending"
     },
     assignedAt: {
       type: Date,
       default: Date.now
+    },
+    expiresAt: {
+      type: Date,
+      required: [true, "Assignment expiry time is required"]
     },
     completedAt: {
       type: Date

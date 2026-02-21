@@ -20,7 +20,8 @@ const withUrgency = (foodDoc) => {
 // Create food listing and auto-assign to best NGO
 const createFood = async (req, res, next) => {
   try {
-    const { type, quantity, unit, description, lat, lng, expiresAt, donor, notes } =
+    console.log("Incoming food payload:", req.body);
+    const { type, quantity, unit, description, lat, lng, expiresAt, foodExpiresAt, donor, notes } =
       req.body;
 
     const food = new Food({
@@ -31,6 +32,7 @@ const createFood = async (req, res, next) => {
       lat,
       lng,
       expiresAt,
+      foodExpiresAt,
       donor: {
         ...donor,
         user: req.user.id
@@ -85,6 +87,15 @@ const createFood = async (req, res, next) => {
       autoTriggered: false
     });
   } catch (error) {
+    if (error.name === "ValidationError") {
+      console.error("Food Validation Error:", error.errors);
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+        details: Object.values(error.errors).map((e) => e.message)
+      });
+    }
+    console.error("Food Create Error:", error);
     next(error);
   }
 };

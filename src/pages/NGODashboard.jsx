@@ -13,11 +13,11 @@ import {
 } from "recharts";
 import { useEffect, useRef, useState } from "react";
 import { parseISO, formatDistanceToNow } from "date-fns";
-import { useAuth } from "./hooks/useAuth";
+import { useAuth } from "../hooks/useAuth";
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
-import api from "./api/axios";
-import { foodAPI, assignmentAPI } from "./api";
-import Spinner from "./components/ui/Spinner";
+import api from "../api/axios";
+import { foodAPI, assignmentAPI } from "../api";
+import Spinner from "../components/ui/Spinner";
 import CountUp from "react-countup";
 
 const URGENCY_COLORS = ["#dc2626", "#f59e0b", "#16a34a"];
@@ -32,7 +32,7 @@ const SUMMARY_CARDS = [
 
 const getDayKey = (value) => {
   if (!value) return null;
-  const date = new Date(value);
+  const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return date.toISOString().slice(0, 10);
 };
@@ -55,7 +55,9 @@ const buildTrendData = (foods, assignments) => {
     assignmentByDay[key] = (assignmentByDay[key] || 0) + 1;
   });
 
+  // Merge all day keys from both sources, sort ascending
   const days = [...new Set([...Object.keys(foodByDay), ...Object.keys(assignmentByDay)])].sort();
+
   return days.map((day) => ({
     day,
     label: day.slice(5).replace("-", "/"),
@@ -64,7 +66,8 @@ const buildTrendData = (foods, assignments) => {
   }));
 };
 
-export default function ImpactDashboard() {
+
+export default function NGODashboard() {
   const { user, role } = useAuth();
 
   // ROBUST ROLE CHECK
@@ -152,12 +155,25 @@ export default function ImpactDashboard() {
 
       const [summaryRes, foodRes, assignmentRes, ngoRes] = await Promise.all([
         api.get("/demo/summary"),
-        foodAPI.getAll(),
+        foodAPI.getAll({ status: '' }),
         assignmentAPI.getMyAssignments(),
-        isNGO ? api.get("/ngo/me").catch(() => null) : Promise.resolve(null),
+        isNGO ? api.get("/ngos/me").catch((err) => {
+          const status = err.response?.status;
+          const storedAuth = localStorage.getItem('auth_storage');
+          const token = storedAuth ? JSON.parse(storedAuth)?.state?.token : null;
+          console.log('[debug] Stored JWT token:', token ? token.slice(0, 20) + '...' : 'NONE');
+          console.log('[debug] /api/ngo/me error status:', status, err.response?.data);
+          if (status === 401 || status === 404) {
+            console.warn('[auth] Stale token or missing NGO profile — clearing session.');
+            localStorage.removeItem('auth_storage');
+            window.location.href = '/login';
+          }
+          return null;
+        }) : Promise.resolve(null),
       ]);
 
       setSummary(summaryRes.data || null);
+      console.log("NGO Profile Response:", ngoRes?.data);
       if (ngoRes?.data?.ngo) {
         setNgoProfile(ngoRes.data.ngo);
       }
@@ -267,7 +283,7 @@ export default function ImpactDashboard() {
     try {
       setStatusUpdating(true);
       const newStatus = ngoProfile.status === "active" ? "inactive" : "active";
-      const res = await api.patch("/ngo/status", { status: newStatus });
+      const res = await api.patch("/ngos/status", { status: newStatus });
       setNgoProfile(res.data?.ngo || { ...ngoProfile, status: newStatus });
     } catch (err) {
       console.error("Failed to update status", err);
@@ -301,22 +317,60 @@ export default function ImpactDashboard() {
         <h2 className="text-4xl font-extrabold text-neutral-900 tracking-tight">Impact Dashboard</h2>
         <p className="text-neutral-500 mt-2 text-lg">Real-time metrics on food rescue operations</p>
 
-        {isNGO && ngoProfile && (
-          <div className="mt-6 flex items-center justify-center gap-4">
-            <div className={`px-4 py-1.5 rounded-full border text-sm font-bold flex items-center gap-2 shadow-sm ${ngoProfile.status === "active" ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"}`}>
-              {ngoProfile.status === "active" ? "🟢 Online" : "🔴 Offline"}
+        {isNGO && (
+          ngoProfile ? (
+            <div className="mt-6 flex items-center justify-center gap-4">
+              <div className={`px-4 py-1.5 rounded-full border text-sm font-bold flex items-center gap-2 shadow-sm ${ngoProfile.status === "active" ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"}`}>
+                {ngoProfile.status === "active" ? "🟢 Online" : "🔴 Offline"}
+              </div>
+              <button
+                type="button"
+                onClick={toggleNgoStatus}
+                disabled={statusUpdating}
+                className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all border shadow-sm ${ngoProfile.status === "active" ? "bg-white text-gray-700 hover:bg-gray-50 border-gray-300" : "bg-green-600 text-white hover:bg-green-700 border-green-600"}`}
+              >
+                {statusUpdating ? "Updating..." : (ngoProfile.status === "active" ? "Go Offline" : "Go Online")}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={toggleNgoStatus}
-              disabled={statusUpdating}
-              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all border shadow-sm ${ngoProfile.status === "active" ? "bg-white text-gray-700 hover:bg-gray-50 border-gray-300" : "bg-green-600 text-white hover:bg-green-700 border-green-600"}`}
-            >
-              {statusUpdating ? "Updating..." : (ngoProfile.status === "active" ? "Go Offline" : "Go Online")}
-            </button>
-          </div>
+          ) : (
+            <div className="text-red-600 text-sm mt-4">
+              NGO profile not found. Please re-register.
+            </div>
+          )
         )}
       </div>
+
+      {/* CAPACITY OVERVIEW - NGO ONLY */}
+      {isNGO && ngoProfile && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+          <div className="card border-neutral-100 shadow-lg shadow-neutral-100/50 p-6 rounded-xl bg-white text-center">
+            <div className="text-sm font-semibold text-neutral-500 uppercase tracking-wide">
+              Total Capacity
+            </div>
+            <div className="mt-2 text-3xl font-black text-neutral-900">
+              {ngoProfile?.capacity ?? "--"}
+            </div>
+          </div>
+
+          <div className="card border-neutral-100 shadow-lg shadow-neutral-100/50 p-6 rounded-xl bg-white text-center">
+            <div className="text-sm font-semibold text-neutral-500 uppercase tracking-wide">
+              Active Pickups
+            </div>
+            <div className="mt-2 text-3xl font-black text-neutral-900">
+              {ngoProfile?.activeAssignments ?? "--"}
+            </div>
+          </div>
+
+          <div className="card border-neutral-100 shadow-lg shadow-neutral-100/50 p-6 rounded-xl bg-white text-center">
+            <div className="text-sm font-semibold text-neutral-500 uppercase tracking-wide">
+              Available Slots
+            </div>
+            <div className="mt-2 text-3xl font-black text-neutral-900">
+              {ngoProfile?.availableSlots ?? "--"}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* EMERGENCY ALERT & OFFLINE BANNER */}
       {isNGO && ngoProfile?.status === "inactive" ? (
@@ -468,9 +522,9 @@ export default function ImpactDashboard() {
         <p className="text-sm text-neutral-500 mb-6">
           Daily trend for food records and assignment records.
         </p>
-        <div ref={kpiChartRef} className="h-[320px] w-full">
-          {mounted && kpiContainerReady && trendData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={320}>
+        <div style={{ width: "100%", height: 300 }}>
+          {trendData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData} margin={{ top: 8, right: 16, left: 4, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6b7280" }} />
@@ -510,6 +564,7 @@ export default function ImpactDashboard() {
             </div>
           )}
         </div>
+
       </div>
 
       <div className="card shadow-lg shadow-neutral-100/50 mb-8">
@@ -590,7 +645,7 @@ export default function ImpactDashboard() {
           <h3 className="text-xl font-bold text-neutral-900 mb-6">AI Prioritized Pickups</h3>
 
           <div ref={urgencyChartRef} className="h-[300px] w-full">
-            {mounted && urgencyContainerReady ? (
+            {urgencyData.some((d) => d.value > 0) ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie

@@ -51,8 +51,22 @@ const foodSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["available", "assigned", "delivered", "expired"],
+      enum: ["available", "pending_acceptance", "assigned", "picked_up", "delivered", "expired", "escalated"],
       default: "available"
+    },
+    declinedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "NGO"
+      }
+    ],
+    escalationLevel: {
+      type: Number,
+      default: 0
+    },
+    foodExpiresAt: {
+      type: Date,
+      required: [true, "Food expiry date is required"]
     },
     assignedNgo: {
       type: mongoose.Schema.Types.ObjectId,

@@ -1,4 +1,7 @@
 const NGO = require("../models/NGO");
+const Assignment = require("../models/Assignment");
+const Food = require("../models/Food");
+const { findAndAssignBestNGO } = require("./assignmentController");
 const { sendError } = require("../utils/errorResponse");
 
 // Create NGO
@@ -119,11 +122,25 @@ const deleteNGO = async (req, res, next) => {
 // Get current NGO profile
 const getMe = async (req, res, next) => {
   try {
+    console.log("Auth user ID:", req.user.id);
     const ngo = await NGO.findOne({ user: req.user.id });
+    console.log("NGO lookup result:", ngo);
     if (!ngo) {
-      return sendError(res, 404, "NGO profile not found", "NOT_FOUND");
+      return res.status(404).json({ message: "NGO profile not found" });
     }
-    res.status(200).json({ ngo });
+    const activeAssignments = await Assignment.countDocuments({
+      ngo: ngo._id,
+      status: { $in: ["pending", "accepted", "PENDING", "ACCEPTED"] }
+    });
+
+    res.status(200).json({
+      success: true,
+      ngo: {
+        ...ngo.toObject(),
+        activeAssignments,
+        availableSlots: Math.max(ngo.capacity - activeAssignments, 0)
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -145,10 +162,37 @@ const updateNGOStatus = async (req, res, next) => {
     );
 
     if (!ngo) {
-      return sendError(res, 404, "NGO profile not found", "NOT_FOUND");
+      return res.status(404).json({ message: "NGO profile not found" });
     }
 
-    res.status(200).json({ message: "NGO status updated", ngo });
+    if (status === "inactive") {
+      const activeAssignments = await Assignment.find({
+        ngo: ngo._id,
+        status: { $in: ["pending", "accepted", "PENDING", "ACCEPTED"] }
+      });
+
+      if (activeAssignments.length > 0) {
+        console.log(`NGO ${ngo.name} went offline — reassigning ${activeAssignments.length} assignments`);
+
+        for (const assignment of activeAssignments) {
+          const food = await Food.findById(assignment.food);
+
+          await Assignment.deleteOne({ _id: assignment._id });
+
+          if (food) {
+            food.status = "available";
+            food.assignedNgo = null;
+            food.isAutoAssigned = false;
+            await food.save();
+
+            // Re-run the auto-assigner for this food to find a new NGO
+            await findAndAssignBestNGO(food, { autoAssign: true });
+          }
+        }
+      }
+    }
+
+    res.status(200).json({ success: true, ngo });
   } catch (error) {
     next(error);
   }

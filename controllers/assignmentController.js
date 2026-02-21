@@ -6,7 +6,7 @@ const { calculateScore } = require("../services/priorityEngine");
 const { sendError } = require("../utils/errorResponse");
 
 const ACTIVE_ASSIGNMENT_STATUSES = ["pending", "accepted"];
-const ASSIGNMENT_STATUSES = ["pending", "accepted", "rejected", "completed", "expired"];
+const ASSIGNMENT_STATUSES = ["pending", "accepted", "rejected", "timed_out", "completed", "cancelled"];
 
 const buildError = (message, statusCode, code) => {
   const error = new Error(message);
@@ -22,8 +22,8 @@ const getFoodUpdateForStatus = (status) => {
   if (status === "completed") {
     return { status: "delivered" };
   }
-  if (status === "expired") {
-    return { status: "expired", assignedNgo: null };
+  if (status === "timed_out" || status === "cancelled") {
+    return { status: "available", assignedNgo: null, isAutoAssigned: false };
   }
   if (status === "pending" || status === "accepted") {
     return { status: "assigned" };
@@ -33,7 +33,12 @@ const getFoodUpdateForStatus = (status) => {
 
 // Helper function to find best NGO and create assignment
 const findAndAssignBestNGO = async (foodInput, options = {}) => {
-  const foodId = foodInput?._id || foodInput;
+  if (!foodInput || (!foodInput._id && typeof foodInput !== "string")) {
+    console.warn("findAndAssignBestNGO called without valid food.");
+    return { assignment: null, score: null };
+  }
+
+  const foodId = foodInput._id || foodInput;
   const { autoAssign = false } = options;
   const session = await mongoose.startSession();
 
@@ -43,6 +48,17 @@ const findAndAssignBestNGO = async (foodInput, options = {}) => {
     const food = await Food.findById(foodId).session(session);
     if (!food) {
       throw buildError("Food not found", 404, "NOT_FOUND");
+    }
+
+    const existing = await Assignment.findOne({
+      food: food._id,
+      status: { $in: ["pending", "accepted", "PENDING", "ACCEPTED"] }
+    }).session(session);
+
+    if (existing) {
+      console.log(`Food ${food._id} already assigned — skipping duplicate assignment`);
+      await session.abortTransaction();
+      return { assignment: existing, score: null };
     }
 
     // Re-check status inside transaction to prevent race conditions.
@@ -82,7 +98,19 @@ const findAndAssignBestNGO = async (foodInput, options = {}) => {
     let bestScore = -1;
     let bestScoreDetails = null;
 
-    ngos.forEach((ngo) => {
+    for (const ngo of ngos) {
+      const activeAssignments = await Assignment.countDocuments({
+        ngo: ngo._id,
+        status: { $in: ["pending", "accepted"] }
+      });
+
+      if (activeAssignments >= ngo.capacity) {
+        console.log(
+          `NGO ${ngo.name} skipped — capacity reached (${activeAssignments}/${ngo.capacity})`
+        );
+        continue; // Skip this NGO — capacity full
+      }
+
       const currentActiveCount = assignmentCounts[ngo._id.toString()] || 0;
       const scoreResult = calculateScore(food, ngo, currentActiveCount);
 
@@ -91,7 +119,7 @@ const findAndAssignBestNGO = async (foodInput, options = {}) => {
         bestNgo = ngo;
         bestScoreDetails = scoreResult;
       }
-    });
+    }
 
     if (!bestNgo) {
       await session.abortTransaction();
@@ -140,6 +168,7 @@ const findAndAssignBestNGO = async (foodInput, options = {}) => {
           timeUrgency: bestScoreDetails.timeUrgency,
           responseScore: bestScoreDetails.responseScore,
           status: "pending",
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
         },
       ],
       { session }
@@ -152,6 +181,8 @@ const findAndAssignBestNGO = async (foodInput, options = {}) => {
       ngoId: String(bestNgo._id),
       autoAssign
     });
+
+    console.log(`findAndAssignBestNGO completed for food ${food._id}`);
 
     return {
       assignment: await Assignment.findById(assignment._id).populate("food ngo"),
@@ -229,7 +260,7 @@ const getAllAssignments = async (req, res, next) => {
     }
 
     const assignments = await Assignment.find(query)
-      .populate("food", "type quantity unit expiresAt status description")
+      .populate("food", "type quantity unit expiresAt status description lat lng donor")
       .populate("ngo", "name lat lng contact")
       .sort({ assignedAt: -1 });
 
@@ -259,7 +290,7 @@ const getMyAssignments = async (req, res, next) => {
     if (status) query.status = status;
 
     const assignments = await Assignment.find(query)
-      .populate("food", "type quantity unit expiresAt status description")
+      .populate("food", "type quantity unit expiresAt status description lat lng donor")
       .populate("ngo", "name lat lng contact")
       .sort({ assignedAt: -1 });
 

@@ -31,7 +31,9 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
+            console.warn('[auth] 401 received — clearing session and redirecting to login');
             localStorage.removeItem('auth_storage');
+            window.location.href = '/login';
         }
         return Promise.reject(error);
     }

@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react';
 import App from './App';
 import Spinner from './components/ui/Spinner';
 import ProtectedRoute from './components/ProtectedRoute';
+import { useAuth } from './hooks/useAuth';
 
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
@@ -10,7 +11,8 @@ const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
 const AddFoodPage = lazy(() => import('./pages/donor/AddFoodPage'));
 const NGOFeedPage = lazy(() => import('./pages/ngo/NGOFeedPage'));
 const NGOAssignmentsPage = lazy(() => import('./pages/ngo/NGOAssignmentsPage'));
-const ImpactDashboard = lazy(() => import('./ImpactDashboard'));
+const NGODashboard = lazy(() => import('./pages/NGODashboard'));
+const DonorDashboard = lazy(() => import('./pages/DonorDashboard'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const SuspenseWrapper = ({ children }) => (
@@ -22,6 +24,16 @@ const SuspenseWrapper = ({ children }) => (
         {children}
     </Suspense>
 );
+
+function DashboardRouter() {
+    const { user, role } = useAuth();
+    const normalizedRole = String(role || user?.role || '').toUpperCase();
+
+    if (normalizedRole === 'DONOR') {
+        return <DonorDashboard />;
+    }
+    return <NGODashboard />;
+}
 
 export const router = createBrowserRouter([
     {
@@ -76,7 +88,7 @@ export const router = createBrowserRouter([
                 element: (
                     <SuspenseWrapper>
                         <ProtectedRoute allowedRoles={['DONOR', 'NGO', 'ADMIN']}>
-                            <ImpactDashboard />
+                            <DashboardRouter />
                         </ProtectedRoute>
                     </SuspenseWrapper>
                 ),

@@ -105,7 +105,7 @@ const registerUser = async (req, res) => {
             name: user.name,
             email: user.email,
             role: user.role,
-            token: generateToken(user._id)
+            token: generateToken(user._id, user.role)
         });
     } catch (error) {
         console.error('Register Error:', error.stack || error.message);
@@ -139,13 +139,23 @@ const loginUser = async (req, res) => {
         // Check for user email
         const user = await User.findOne({ email }).select('+password');
 
-        if (user && (await user.comparePassword(password))) {
+        console.log("Login email:", email);
+        console.log("User found:", !!user);
+        console.log("User role:", user?.role);
+
+        let isMatch = false;
+        if (user) {
+            isMatch = await user.comparePassword(password);
+        }
+        console.log("Password match:", isMatch);
+
+        if (user && isMatch) {
             res.json({
                 _id: user.id,
                 name: user.name,
                 email: user.email,
                 role: user.role,
-                token: generateToken(user._id)
+                token: generateToken(user._id, user.role)
             });
         } else {
             return sendError(res, 401, 'Invalid credentials', 'AUTH_INVALID_CREDENTIALS');
@@ -173,12 +183,12 @@ const getMe = async (req, res) => {
 };
 
 // Generate JWT
-const generateToken = (id) => {
+const generateToken = (id, role) => {
     if (!process.env.JWT_SECRET) {
         throw new Error('JWT_SECRET is not configured');
     }
 
-    return jwt.sign({ id }, process.env.JWT_SECRET, {
+    return jwt.sign({ id, role }, process.env.JWT_SECRET, {
         expiresIn: '30d'
     });
 };

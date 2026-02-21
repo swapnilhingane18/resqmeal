@@ -30,7 +30,7 @@ const ngoSchema = new mongoose.Schema(
     },
     capacity: {
       type: Number,
-      default: 100,
+      default: 3,
       min: 0
     },
     status: {

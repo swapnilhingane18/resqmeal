@@ -25,6 +25,7 @@ const AddFoodPage = () => {
                 lat: parseFloat(data.lat),
                 lng: parseFloat(data.lng),
                 expiresAt: new Date(data.expiresAt).toISOString(),
+                foodExpiresAt: new Date(data.expiresAt).toISOString(),
                 donor: {
                     name: data.donorName,
                     contact: data.donorContact,
