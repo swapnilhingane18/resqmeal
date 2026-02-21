@@ -1,4 +1,5 @@
 const Food = require("../models/Food");
+const Assignment = require("../models/Assignment");
 const { findAndAssignBestNGO } = require("./assignmentController");
 const { calculateUrgency } = require("../services/urgency.service");
 const { checkAndTriggerAutoAssignment } = require("../services/emergencyTrigger.service");
@@ -205,10 +206,61 @@ const deleteFood = async (req, res, next) => {
   }
 };
 
+// Get the authenticated donor's own food listings, with assigned NGO details
+const getMyDonations = async (req, res, next) => {
+  try {
+    // Only return food donated by this user
+    const foods = await Food.find({ "donor.user": req.user.id })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const foodIds = foods.map((f) => f._id);
+
+    // Fetch active/pending assignments for these foods, populating only safe NGO fields
+    const assignments = await Assignment.find({
+      food: { $in: foodIds },
+      status: { $in: ["pending", "accepted"] },
+    })
+      .populate({
+        path: "ngo",
+        select: "name contact", // deliberately exclude email, capacity, internal metrics
+      })
+      .select("food ngo status currentLocation")
+      .lean();
+
+    // Build a lookup map: foodId -> assignment
+    const assignmentByFood = {};
+    assignments.forEach((a) => {
+      assignmentByFood[a.food.toString()] = a;
+    });
+
+    // Attach NGO panel data to each food
+    const enriched = foods.map((food) => {
+      const assignment = assignmentByFood[food._id.toString()];
+      const urgency = calculateUrgency(food);
+      const result = { ...food, ...urgency };
+      if (assignment) {
+        result.assignedNGO = {
+          name: assignment.ngo?.name || null,
+          contact: assignment.ngo?.contact || null,
+          currentLocation: assignment.currentLocation || null,
+          assignmentStatus: assignment.status,
+        };
+      }
+      return result;
+    });
+
+    return res.status(200).json({ count: enriched.length, foods: enriched });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   createFood,
   getAllFood,
   getFoodById,
   updateFoodStatus,
-  deleteFood
+  deleteFood,
+  getMyDonations,
 };

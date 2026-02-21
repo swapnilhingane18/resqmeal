@@ -227,6 +227,65 @@ const NGOAssignmentsPage = () => {
 };
 
 // ---------------------------------------------------------------------------
+// LifecycleTimeline — horizontal progress tracker showing assignment stages
+// ---------------------------------------------------------------------------
+const LIFECYCLE_STAGES = [
+    { key: 'created', label: 'Created', getDate: (a) => a.createdAt },
+    { key: 'assigned', label: 'Assigned', getDate: (a) => a.lifecycle?.assignedAt || a.assignedAt },
+    { key: 'accepted', label: 'Accepted', getDate: (a) => a.lifecycle?.acceptedAt },
+    { key: 'completed', label: 'Done', getDate: (a) => a.lifecycle?.completedAt || a.completedAt },
+];
+
+function LifecycleTimeline({ assignment }) {
+    return (
+        <div className="mb-6 px-1">
+            <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">Pickup Lifecycle</p>
+            <div className="flex items-start">
+                {LIFECYCLE_STAGES.map((stage, i) => {
+                    const date = stage.getDate(assignment);
+                    const done = !!date;
+                    const isLast = i === LIFECYCLE_STAGES.length - 1;
+                    return (
+                        <div key={stage.key} className="flex flex-1 flex-col items-center">
+                            <div className="flex items-center w-full">
+                                {/* Circle */}
+                                <div
+                                    className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shadow-sm ${done
+                                        ? 'bg-green-500 text-white'
+                                        : 'bg-neutral-200 text-neutral-400'
+                                        }`}
+                                >
+                                    {done ? '✓' : i + 1}
+                                </div>
+                                {/* Connector line */}
+                                {!isLast && (
+                                    <div
+                                        className={`flex-1 h-0.5 ${done ? 'bg-green-400' : 'bg-neutral-200'
+                                            }`}
+                                    />
+                                )}
+                            </div>
+                            {/* Label + timestamp */}
+                            <div className="mt-1.5 text-center">
+                                <p className={`text-xs font-semibold ${done ? 'text-green-700' : 'text-neutral-400'
+                                    }`}>
+                                    {stage.label}
+                                </p>
+                                {date && (
+                                    <p className="text-[10px] text-neutral-400 mt-0.5">
+                                        {new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
 // AssignmentCard — split out so the useCardUrgency hook is per-card
 // ---------------------------------------------------------------------------
 function AssignmentCard({
@@ -239,13 +298,86 @@ function AssignmentCard({
     getStatusBadge,
 }) {
     const isPending = assignment.status === 'pending';
+    const isAccepted = assignment.status === 'accepted';
     const urgencyClass = useCardUrgency(assignment.expiresAt, isPending);
+    // [HARDENING] toast is needed for geolocation error feedback inside this card
+    const toast = useToast();
+
+    const [isTracking, setIsTracking] = useState(false);
+    const watcherRef = useRef(null);
+    const lastSentRef = useRef(0);
+    const THROTTLE_MS = 10000; // send at most once every 10 seconds
+
+    const stopTracking = () => {
+        // [HARDENING] Clear watcher and reset state — safe to call multiple times
+        if (watcherRef.current != null) {
+            navigator.geolocation.clearWatch(watcherRef.current);
+            watcherRef.current = null;
+        }
+        setIsTracking(false);
+    };
+
+    const startTracking = () => {
+        // [HARDENING] Geolocation API availability check
+        if (!navigator.geolocation) {
+            toast.error('Geolocation is not supported by your browser.');
+            return;
+        }
+        // [HARDENING] Duplicate tracker guard — prevent stacking multiple watchers
+        if (watcherRef.current != null) return;
+
+        setIsTracking(true);
+        watcherRef.current = navigator.geolocation.watchPosition(
+            (pos) => {
+                const now = Date.now();
+                if (now - lastSentRef.current < THROTTLE_MS) return;
+                lastSentRef.current = now;
+                assignmentAPI.updateLocation(
+                    assignment._id,
+                    pos.coords.latitude,
+                    pos.coords.longitude
+                ).catch((err) => {
+                    // [HARDENING] Stop tracking if backend rejects (e.g., completed assignment)
+                    const status = err?.response?.status;
+                    console.warn('[tracking] location update rejected:', status, err?.response?.data?.message);
+                    if (status === 409 || status === 403 || status === 404) {
+                        stopTracking();
+                        toast.error('Location tracking stopped — assignment may have changed.');
+                    }
+                });
+            },
+            (geoError) => {
+                // [HARDENING] Geolocation permission denied or unavailable — stop cleanly
+                console.warn('[tracking] geolocation error:', geoError.message);
+                stopTracking();
+                toast.error('Location access denied or unavailable. Tracking stopped.');
+            },
+            { enableHighAccuracy: true, maximumAge: 5000 }
+        );
+    };
+
+    // [HARDENING] Stop watcher automatically when status leaves 'accepted'
+    useEffect(() => {
+        if (!isAccepted) stopTracking();
+    }, [isAccepted]);
+
+    // [HARDENING] Stop watcher on component unmount (navigation away)
+    useEffect(() => {
+        return () => stopTracking();
+    }, []);
 
     return (
         <div
-            className={`card group hover:shadow-lg transition-all border ${urgencyClass || 'border-neutral-100/50'
-                }`}
+            className={`relative card group hover:shadow-lg transition-all border ${urgencyClass || 'border-neutral-100/50'}`}
         >
+            {/* Live pickup badge — only shown when geolocation tracking is active */}
+            {isTracking && (
+                <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold shadow-sm animate-pulse z-10">
+                    <span className="w-2 h-2 bg-green-500 rounded-full" />
+                    LIVE PICKUP IN PROGRESS
+                </div>
+            )}
+
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-neutral-50 pb-4">
                 <div>
                     <h3 className="text-xl font-bold text-neutral-900 leading-tight">
@@ -294,6 +426,9 @@ function AssignmentCard({
                     <ScoreVisualization assignment={assignment} />
                 </div>
             )}
+
+            {/* Lifecycle Timeline */}
+            <LifecycleTimeline assignment={assignment} />
 
             {/* Donor Contact Details */}
             {assignment.food?.donor && (
@@ -381,15 +516,35 @@ function AssignmentCard({
                     </>
                 )}
 
-                {assignment.status === 'accepted' && (
-                    <Button
-                        size="sm"
-                        variant="primary"
-                        loading={actionLoading[assignment._id]}
-                        onClick={() => onStatusUpdate(assignment._id, 'completed')}
-                    >
-                        Mark as Completed
-                    </Button>
+                {isAccepted && (
+                    <>
+                        {!isTracking ? (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-green-700 border-green-300 hover:bg-green-50 font-semibold"
+                                onClick={startTracking}
+                            >
+                                📍 Start Pickup
+                            </Button>
+                        ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
+                                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                Tracking Live
+                            </span>
+                        )}
+                        <Button
+                            size="sm"
+                            variant="primary"
+                            loading={actionLoading[assignment._id]}
+                            onClick={() => {
+                                stopTracking();
+                                onStatusUpdate(assignment._id, 'completed');
+                            }}
+                        >
+                            Mark as Completed
+                        </Button>
+                    </>
                 )}
             </div>
         </div>

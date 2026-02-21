@@ -169,6 +169,7 @@ const findAndAssignBestNGO = async (foodInput, options = {}) => {
           responseScore: bestScoreDetails.responseScore,
           status: "pending",
           expiresAt: new Date(Date.now() + 1 * 60 * 1000),
+          lifecycle: { assignedAt: new Date() }
         },
       ],
       { session }
@@ -364,6 +365,11 @@ const updateAssignmentStatus = async (req, res, next) => {
 
     existing.status = status;
     existing.completedAt = status === "completed" ? new Date() : null;
+    if (status === "accepted") {
+      existing.lifecycle = { ...existing.lifecycle?.toObject?.() ?? existing.lifecycle ?? {}, acceptedAt: new Date() };
+    } else if (status === "completed") {
+      existing.lifecycle = { ...existing.lifecycle?.toObject?.() ?? existing.lifecycle ?? {}, completedAt: new Date() };
+    }
     await existing.save({ session });
 
     const foodUpdate = getFoodUpdateForStatus(status);
@@ -406,11 +412,69 @@ const updateAssignmentStatus = async (req, res, next) => {
   }
 };
 
+// Update NGO real-time location during active pickup
+const updateAssignmentLocation = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { lat, lng } = req.body;
+
+    // [HARDENING] 1 — Presence check
+    if (lat == null || lng == null) {
+      return sendError(res, 400, "lat and lng are required", "VALIDATION_ERROR");
+    }
+
+    // [HARDENING] 2 — Type safety: must be numeric
+    const latNum = Number(lat);
+    const lngNum = Number(lng);
+    if (Number.isNaN(latNum) || Number.isNaN(lngNum)) {
+      return sendError(res, 400, "lat and lng must be valid numbers", "VALIDATION_ERROR");
+    }
+
+    // [HARDENING] 3 — Coordinate range validation
+    if (latNum < -90 || latNum > 90) {
+      return sendError(res, 400, "lat must be between -90 and 90", "VALIDATION_ERROR");
+    }
+    if (lngNum < -180 || lngNum > 180) {
+      return sendError(res, 400, "lng must be between -180 and 180", "VALIDATION_ERROR");
+    }
+
+    // [HARDENING] 4 — Assignment must exist
+    const assignment = await Assignment.findById(id);
+    if (!assignment) {
+      return sendError(res, 404, "Assignment not found", "NOT_FOUND");
+    }
+
+    // [HARDENING] 5 — Status gate: only accepted assignments may receive location updates
+    if (assignment.status !== "accepted") {
+      return sendError(
+        res,
+        409,
+        `Location updates only allowed for accepted assignments (current: ${assignment.status})`,
+        "STATUS_CONFLICT"
+      );
+    }
+
+    // [HARDENING] 6 — NGO ownership: only the assigned NGO may update location
+    const ngo = await NGO.findOne({ user: req.user.id }).select("_id");
+    if (!ngo || assignment.ngo.toString() !== ngo._id.toString()) {
+      return sendError(res, 403, "Not authorized to update this assignment", "FORBIDDEN");
+    }
+
+    assignment.currentLocation = { lat: latNum, lng: lngNum, updatedAt: new Date() };
+    await assignment.save();
+
+    return res.status(200).json({ success: true, currentLocation: assignment.currentLocation });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   assignFood,
   getAllAssignments,
   getMyAssignments,
   getAssignmentById,
   updateAssignmentStatus,
+  updateAssignmentLocation,
   findAndAssignBestNGO,
 };

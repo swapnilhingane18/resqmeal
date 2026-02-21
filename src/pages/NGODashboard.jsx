@@ -93,6 +93,7 @@ export default function NGODashboard() {
   const [trendData, setTrendData] = useState([]);
   const [urgencyData, setUrgencyData] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
+  const [activeAssignments, setActiveAssignments] = useState([]);
 
   // New State for Urgency Counts
   const [emergencyCount, setEmergencyCount] = useState(0);
@@ -188,6 +189,7 @@ export default function NGODashboard() {
 
       const foods = Array.isArray(foodRes?.foods) ? foodRes.foods : [];
       const assignments = Array.isArray(assignmentRes?.assignments) ? assignmentRes.assignments : [];
+      setActiveAssignments(assignments);
       setTrendData(buildTrendData(foods, assignments));
 
       let high = 0;
@@ -399,6 +401,19 @@ export default function NGODashboard() {
           {error}
         </div>
       )}
+
+      {/* LIVE TRACKING COUNT INDICATOR */}
+      {(() => {
+        const liveTrackingCount = activeAssignments.filter(
+          (a) => a.status === "accepted" && a.currentLocation?.lat != null
+        ).length;
+        return liveTrackingCount > 0 ? (
+          <div className="mb-6 flex items-center gap-2 text-sm text-orange-600 font-medium">
+            <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
+            Live NGO Tracking Active ({liveTrackingCount})
+          </div>
+        ) : null;
+      })()}
 
       {/* EMERGENCY SCAN BUTTON & RESULT - NGO/ADMIN ONLY */}
       {isNGO && (
@@ -636,6 +651,28 @@ export default function NGODashboard() {
                   </CircleMarker>
                 );
               })}
+
+            {/* Live NGO location markers — shown when NGO has started pickup */}
+            {activeAssignments
+              .filter((a) => a.status === "accepted" && a.currentLocation?.lat != null && a.currentLocation?.lng != null)
+              .map((a) => (
+                <CircleMarker
+                  key={`live-${a._id}`}
+                  center={[a.currentLocation.lat, a.currentLocation.lng]}
+                  radius={10}
+                  pathOptions={{ color: "#c2410c", fillColor: "#f97316", fillOpacity: 0.95 }}
+                >
+                  <Popup>
+                    <div className="text-sm">
+                      <p className="font-semibold">🚚 NGO En Route</p>
+                      <p>{a.ngo?.name || "NGO"}</p>
+                      <p className="text-xs text-neutral-500">
+                        Updated {a.currentLocation.updatedAt ? new Date(a.currentLocation.updatedAt).toLocaleTimeString() : "recently"}
+                      </p>
+                    </div>
+                  </Popup>
+                </CircleMarker>
+              ))}
           </MapContainer>
         </div>
       </div>

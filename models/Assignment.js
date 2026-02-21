@@ -49,7 +49,17 @@ const assignmentSchema = new mongoose.Schema(
     completedAt: {
       type: Date
     },
-    notes: String
+    notes: String,
+    lifecycle: {
+      assignedAt: { type: Date },
+      acceptedAt: { type: Date },
+      completedAt: { type: Date }
+    },
+    currentLocation: {
+      lat: { type: Number },
+      lng: { type: Number },
+      updatedAt: { type: Date }
+    }
   },
   {
     timestamps: true

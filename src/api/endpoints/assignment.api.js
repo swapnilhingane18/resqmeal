@@ -8,5 +8,9 @@ export const assignmentAPI = {
     updateStatus: async (id, status) => {
         const response = await api.put(`/assignments/${id}`, { status });
         return response.data;
+    },
+    updateLocation: async (id, lat, lng) => {
+        const response = await api.put(`/assignments/${id}/location`, { lat, lng });
+        return response.data;
     }
 };

@@ -16,5 +16,9 @@ export const foodAPI = {
     delete: async (id) => {
         const response = await api.delete(`/food/${id}`);
         return response.data;
+    },
+    getMyDonations: async () => {
+        const response = await api.get('/food/me');
+        return response.data;
     }
 };

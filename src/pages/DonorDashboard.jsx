@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { foodAPI, assignmentAPI } from "../api";
+import { foodAPI } from "../api";
+import { MapContainer, TileLayer, CircleMarker, Popup, Polyline } from "react-leaflet";
 
 const SUMMARY_CARDS = [
     {
@@ -30,26 +31,122 @@ const SUMMARY_CARDS = [
     },
 ];
 
+// ---------------------------------------------------------------------------
+// Mini Leaflet map — shows donor pin + live NGO pin with a connecting line
+// ---------------------------------------------------------------------------
+function PickupMap({ donorLat, donorLng, ngoLat, ngoLng }) {
+    const center = ngoLat != null ? [ngoLat, ngoLng] : [donorLat, donorLng];
+    const donorPos = [donorLat, donorLng];
+    const ngoPos = ngoLat != null ? [ngoLat, ngoLng] : null;
+
+    return (
+        <div className="w-full h-48 rounded-xl overflow-hidden border border-green-200 mt-3">
+            <MapContainer center={center} zoom={14} style={{ height: "100%", width: "100%" }} scrollWheelZoom={false}>
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                {/* Donor location */}
+                <CircleMarker
+                    center={donorPos}
+                    radius={7}
+                    pathOptions={{ color: "#1d4ed8", fillColor: "#3b82f6", fillOpacity: 0.9 }}
+                >
+                    <Popup><span className="text-xs font-semibold">📦 Your donation</span></Popup>
+                </CircleMarker>
+                {/* Live NGO location */}
+                {ngoPos && (
+                    <>
+                        <CircleMarker
+                            center={ngoPos}
+                            radius={9}
+                            pathOptions={{ color: "#c2410c", fillColor: "#f97316", fillOpacity: 0.95 }}
+                        >
+                            <Popup><span className="text-xs font-semibold">🚚 NGO en route</span></Popup>
+                        </CircleMarker>
+                        <Polyline
+                            positions={[donorPos, ngoPos]}
+                            pathOptions={{ color: "#f97316", dashArray: "6 4", weight: 2, opacity: 0.6 }}
+                        />
+                    </>
+                )}
+            </MapContainer>
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
+// NGO Panel — shows assigned NGO name, contact buttons, and live map
+// ---------------------------------------------------------------------------
+function NGOPanel({ assignedNGO, food }) {
+    if (!assignedNGO) return null;
+    const { name, contact, currentLocation, assignmentStatus } = assignedNGO;
+    const hasLiveLocation = currentLocation?.lat != null && currentLocation?.lng != null;
+    const hasDonorLocation = food.lat != null && food.lng != null;
+
+    return (
+        <div className="bg-green-50 border border-green-100 rounded-xl p-4 mt-4">
+            <h4 className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-1.5">
+                <span className="w-2 h-2 bg-green-500 rounded-full inline-block" />
+                Assigned NGO
+            </h4>
+
+            <p className="font-semibold text-neutral-800 text-sm">{name || "NGO"}</p>
+            <p className="text-xs text-neutral-500 mt-0.5 capitalize">Status: {assignmentStatus}</p>
+
+            {contact && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                    <a
+                        href={`tel:${contact}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm"
+                    >
+                        📞 Call NGO
+                    </a>
+                    <a
+                        href={`https://wa.me/91${contact}?text=Hi%2C%20regarding%20my%20food%20donation%20pickup`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200 transition-colors"
+                    >
+                        💬 WhatsApp
+                    </a>
+                </div>
+            )}
+
+            {/* Live mini map */}
+            {hasDonorLocation ? (
+                hasLiveLocation ? (
+                    <PickupMap
+                        donorLat={food.lat}
+                        donorLng={food.lng}
+                        ngoLat={currentLocation.lat}
+                        ngoLng={currentLocation.lng}
+                    />
+                ) : (
+                    <p className="text-xs text-neutral-400 mt-3 flex items-center gap-1.5">
+                        <span className="w-2 h-2 bg-neutral-300 rounded-full inline-block" />
+                        Waiting for NGO to start pickup.
+                    </p>
+                )
+            ) : null}
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
 export default function DonorDashboard() {
     const { user } = useAuth();
     const navigate = useNavigate();
 
     const [donations, setDonations] = useState([]);
-    const [assignments, setAssignments] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [foodRes, assignmentRes] = await Promise.all([
-                    foodAPI.getAll().catch(() => ({ foods: [] })),
-                    assignmentAPI.getMyAssignments().catch(() => ({ assignments: [] })),
-                ]);
-                setDonations(Array.isArray(foodRes?.foods) ? foodRes.foods : []);
-                setAssignments(Array.isArray(assignmentRes?.assignments) ? assignmentRes.assignments : []);
+                const res = await foodAPI.getMyDonations().catch(() => ({ foods: [] }));
+                setDonations(Array.isArray(res?.foods) ? res.foods : []);
             } catch (_) {
                 setDonations([]);
-                setAssignments([]);
             } finally {
                 setLoading(false);
             }
@@ -61,7 +158,7 @@ export default function DonorDashboard() {
         totalFoodDonated: donations.length,
         mealsGenerated: donations.reduce((acc, f) => acc + (Number(f.quantity) || 0), 0),
         totalDonations: donations.length,
-        pickupsCompleted: assignments.filter((a) => a.status === "completed").length,
+        pickupsCompleted: donations.filter((f) => f.status === "delivered").length,
     };
 
     const activeDonations = donations.filter((f) => f.status === "available" || f.status === "assigned");
@@ -81,8 +178,8 @@ export default function DonorDashboard() {
             <div className="text-center mb-12">
                 <div className="inline-flex items-center gap-2 bg-green-50 border border-green-100 rounded-full px-4 py-1.5 mb-4">
                     <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
                     </span>
                     <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">Donor Portal</span>
                 </div>
@@ -115,13 +212,13 @@ export default function DonorDashboard() {
                 ))}
             </div>
 
-            {/* Active Donations Table */}
+            {/* Active Donations — card view with NGO panel */}
             <div className="card rounded-2xl shadow-md border border-neutral-100 mb-10">
                 <div className="p-6 border-b border-neutral-100">
                     <h3 className="text-xl font-bold text-neutral-900">🟢 My Active Donations</h3>
                     <p className="text-sm text-neutral-500 mt-1">Food currently available or awaiting pickup.</p>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="p-6">
                     {activeDonations.length === 0 ? (
                         <div className="py-12 text-center text-neutral-400 text-sm">
                             No active donations at the moment. <br />
@@ -134,32 +231,39 @@ export default function DonorDashboard() {
                             </button>
                         </div>
                     ) : (
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="bg-neutral-50 text-neutral-500 uppercase text-xs">
-                                    <th className="px-6 py-3 text-left font-semibold">Type</th>
-                                    <th className="px-6 py-3 text-left font-semibold">Qty</th>
-                                    <th className="px-6 py-3 text-left font-semibold">Status</th>
-                                    <th className="px-6 py-3 text-left font-semibold">Expires</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-neutral-100">
-                                {activeDonations.map((food) => (
-                                    <tr key={food._id} className="hover:bg-neutral-50 transition-colors">
-                                        <td className="px-6 py-4 font-medium text-neutral-800 capitalize">{food.type || "—"}</td>
-                                        <td className="px-6 py-4 text-neutral-600">{food.quantity} {food.unit}</td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${food.status === "assigned" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"}`}>
-                                                {food.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-neutral-500">
-                                            {food.expiresAt ? new Date(food.expiresAt).toLocaleDateString() : "—"}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            {activeDonations.map((food) => (
+                                <div
+                                    key={food._id}
+                                    className="border border-neutral-100 rounded-xl p-4 bg-neutral-50 hover:shadow-md transition-all"
+                                >
+                                    {/* Food header */}
+                                    <div className="flex items-start justify-between mb-3">
+                                        <div>
+                                            <p className="font-semibold text-neutral-800 capitalize">
+                                                {food.description || food.type || "Food Item"}
+                                            </p>
+                                            <p className="text-xs text-neutral-500 mt-0.5">
+                                                {food.quantity} {food.unit}
+                                                {food.expiresAt ? ` · Expires ${new Date(food.expiresAt).toLocaleDateString()}` : ""}
+                                            </p>
+                                        </div>
+                                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold shrink-0 ${food.status === "assigned" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"}`}>
+                                            {food.status}
+                                        </span>
+                                    </div>
+
+                                    {/* NGO Panel — only if assignment exists */}
+                                    {food.assignedNGO ? (
+                                        <NGOPanel assignedNGO={food.assignedNGO} food={food} />
+                                    ) : (
+                                        <p className="text-xs text-neutral-400 mt-2">
+                                            ⏳ Awaiting NGO assignment by the system.
+                                        </p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     )}
                 </div>
             </div>

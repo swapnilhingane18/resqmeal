@@ -5,12 +5,14 @@ const {
   getAllFood,
   getFoodById,
   updateFoodStatus,
-  deleteFood
+  deleteFood,
+  getMyDonations,
 } = require('../controllers/foodController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorizeRoles } = require('../middleware/roleMiddleware');
 
 router.post('/', protect, authorizeRoles('DONOR'), createFood);
+router.get('/me', protect, authorizeRoles('DONOR'), getMyDonations);
 router.get('/', getAllFood);
 router.get('/:id', getFoodById);
 router.put('/:id', protect, authorizeRoles('DONOR', 'ADMIN'), updateFoodStatus);
