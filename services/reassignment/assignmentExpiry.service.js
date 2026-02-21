@@ -14,6 +14,7 @@ const processExpiredAssignments = async () => {
         console.log(`[expiry] Found ${expiredAssignments.length} expired assignments`);
 
         for (const assignment of expiredAssignments) {
+            console.log("[expiry] Found expired assignment:", assignment._id);
             const food = await Food.findById(assignment.food);
 
             await Assignment.deleteOne({ _id: assignment._id });
@@ -24,7 +25,7 @@ const processExpiredAssignments = async () => {
                 food.isAutoAssigned = false;
                 await food.save();
 
-                console.log(`[expiry] Reassigning food ${food._id}`);
+                console.log("[expiry] Reassigning food:", assignment.food);
                 await findAndAssignBestNGO(food, { autoAssign: true });
             }
         }

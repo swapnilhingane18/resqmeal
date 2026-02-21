@@ -168,7 +168,7 @@ const findAndAssignBestNGO = async (foodInput, options = {}) => {
           timeUrgency: bestScoreDetails.timeUrgency,
           responseScore: bestScoreDetails.responseScore,
           status: "pending",
-          expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+          expiresAt: new Date(Date.now() + 1 * 60 * 1000),
         },
       ],
       { session }
@@ -180,6 +180,11 @@ const findAndAssignBestNGO = async (foodInput, options = {}) => {
       foodId: String(food._id),
       ngoId: String(bestNgo._id),
       autoAssign
+    });
+
+    console.log("[assignment-created]", {
+      foodId: food._id,
+      expiresAt: assignment.expiresAt
     });
 
     console.log(`findAndAssignBestNGO completed for food ${food._id}`);

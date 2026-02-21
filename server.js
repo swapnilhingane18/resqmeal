@@ -141,7 +141,9 @@ const startServer = async () => {
       console.log(`Health check: http://localhost:${PORT}/health`);
 
       // Start 60-second assignment expiry monitor
+      console.log("[expiry] background worker started (60s interval)");
       setInterval(() => {
+        console.log("[expiry] checking expired assignments...");
         processExpiredAssignments();
       }, 60000);
     });

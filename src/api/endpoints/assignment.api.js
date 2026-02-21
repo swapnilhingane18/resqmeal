@@ -2,7 +2,7 @@ import api from '../axios';
 
 export const assignmentAPI = {
     getMyAssignments: async () => {
-        const response = await api.get('/assignments');
+        const response = await api.get('/assignments/me');
         return response.data;
     },
     updateStatus: async (id, status) => {

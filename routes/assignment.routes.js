@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   assignFood,
   getAllAssignments,
+  getMyAssignments,
   getAssignmentById,
   updateAssignmentStatus
 } = require('../controllers/assignmentController');
@@ -12,6 +13,7 @@ const { authorizeRoles } = require('../middleware/roleMiddleware');
 // Manual assignment trigger - ADMIN only
 router.post('/assign', protect, authorizeRoles('ADMIN'), assignFood);
 
+router.get('/me', protect, authorizeRoles('NGO'), getMyAssignments);
 router.get('/', protect, getAllAssignments);
 router.get('/:id', protect, getAssignmentById);
 router.put('/:id', protect, authorizeRoles('NGO', 'ADMIN'), updateAssignmentStatus);
