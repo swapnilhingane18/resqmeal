@@ -6,13 +6,15 @@ const {
   getMyAssignments,
   getAssignmentById,
   updateAssignmentStatus,
-  updateAssignmentLocation
+  updateAssignmentLocation,
+  forceExpireAndRouteToEnergy
 } = require('../controllers/assignmentController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorizeRoles } = require('../middleware/roleMiddleware');
 
 // Manual assignment trigger - ADMIN only
 router.post('/assign', protect, authorizeRoles('ADMIN'), assignFood);
+router.post('/force-expire/:foodId', protect, authorizeRoles('ADMIN'), forceExpireAndRouteToEnergy);
 
 router.get('/me', protect, authorizeRoles('NGO'), getMyAssignments);
 router.get('/', protect, getAllAssignments);

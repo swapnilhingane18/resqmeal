@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Food = require("../models/Food");
 const NGO = require("../models/NGO");
+const EnergyCenter = require("../models/EnergyCenter");
 const Assignment = require("../models/Assignment");
 const { calculateScore } = require("../services/priorityEngine");
 const { sendError } = require("../utils/errorResponse");
@@ -19,9 +20,8 @@ const getFoodUpdateForStatus = (status) => {
   if (status === "rejected") {
     return { status: "available", assignedNgo: null, isAutoAssigned: false };
   }
-  if (status === "completed") {
-    return { status: "delivered" };
-  }
+  // "completed" is handled inline in updateAssignmentStatus
+  // because the target food status depends on whether it's an NGO or EnergyCenter assignment
   if (status === "timed_out" || status === "cancelled") {
     return { status: "available", assignedNgo: null, isAutoAssigned: false };
   }
@@ -276,7 +276,7 @@ const getAllAssignments = async (req, res, next) => {
   }
 };
 
-// Get assignments for the currently authenticated NGO user
+// Get assignments for the currently authenticated NGO or EnergyCenter user
 const getMyAssignments = async (req, res, next) => {
   try {
     const { status } = req.query;
@@ -284,7 +284,25 @@ const getMyAssignments = async (req, res, next) => {
       return sendError(res, 400, "Invalid status filter", "VALIDATION_ERROR");
     }
 
-    // Find the NGO profile linked to this user
+    // ── ENERGY_CENTER branch ─────────────────────────────────────────────────
+    if (req.user.role === "ENERGY_CENTER") {
+      const energyCenter = await EnergyCenter.findOne({ user: req.user.id });
+      if (!energyCenter) {
+        return res.status(200).json({ count: 0, assignments: [] });
+      }
+
+      const query = { energyCenter: energyCenter._id };
+      if (status) query.status = status;
+
+      const assignments = await Assignment.find(query)
+        .populate("food", "type quantity unit expiresAt status description lat lng donor")
+        .populate("energyCenter", "name contact address")
+        .sort({ assignedAt: -1 });
+
+      return res.status(200).json({ count: assignments.length, assignments });
+    }
+
+    // ── NGO branch (unchanged) ────────────────────────────────────────────────
     const ngo = await NGO.findOne({ user: req.user.id });
 
     // Defensive: legacy NGO users without a profile get an empty list, not a crash
@@ -375,6 +393,10 @@ const updateAssignmentStatus = async (req, res, next) => {
     const foodUpdate = getFoodUpdateForStatus(status);
     if (foodUpdate) {
       await Food.updateOne({ _id: existing.food }, { $set: foodUpdate }, { session });
+    } else if (status === "completed") {
+      // [ENERGY_CENTER] Determine final food status based on assignment type
+      const finalFoodStatus = existing.energyCenter ? "converted" : "delivered";
+      await Food.updateOne({ _id: existing.food }, { $set: { status: finalFoodStatus } }, { session });
     }
 
     if (capacityDelta !== 0) {
@@ -469,6 +491,77 @@ const updateAssignmentLocation = async (req, res, next) => {
   }
 };
 
+// Force-expire a food item and route it to the first available EnergyCenter
+const forceExpireAndRouteToEnergy = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const { foodId } = req.params;
+
+    // 3. Find the food document
+    const food = await Food.findById(foodId).session(session);
+    if (!food) {
+      await session.abortTransaction();
+      session.endSession();
+      return sendError(res, 404, "Food not found", "NOT_FOUND");
+    }
+
+    // 5. Mark food as expired
+    food.status = "expired";
+    await food.save({ session });
+
+    // 6. Cancel any active NGO assignment for this food
+    await Assignment.updateMany(
+      { food: food._id, status: { $in: ["pending", "accepted"] }, ngo: { $exists: true, $ne: null } },
+      { $set: { status: "cancelled" } },
+      { session }
+    );
+
+    // 7 & 8. Find the first available EnergyCenter
+    const energyCenter = await EnergyCenter.findOne().session(session);
+    if (!energyCenter) {
+      await session.abortTransaction();
+      session.endSession();
+      return sendError(res, 400, "No EnergyCenter available to receive this food", "NO_ENERGY_CENTER");
+    }
+
+    // 9. Create the new EnergyCenter assignment
+    const [assignment] = await Assignment.create(
+      [
+        {
+          food: food._id,
+          energyCenter: energyCenter._id,
+          ngo: null,
+          status: "pending",
+          score: 0,
+          distance: 0,
+          timeUrgency: 0,
+          responseScore: 0,
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+          lifecycle: { assignedAt: new Date() },
+        },
+      ],
+      { session }
+    );
+
+    // 10. Commit
+    await session.commitTransaction();
+    session.endSession();
+
+    // 11. Return success
+    return res.status(200).json({
+      success: true,
+      message: "Food expired and routed to EnergyCenter",
+      assignment,
+      energyCenter: { _id: energyCenter._id, name: energyCenter.name },
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    return next(error);
+  }
+};
+
 module.exports = {
   assignFood,
   getAllAssignments,
@@ -477,4 +570,5 @@ module.exports = {
   updateAssignmentStatus,
   updateAssignmentLocation,
   findAndAssignBestNGO,
+  forceExpireAndRouteToEnergy,
 };
