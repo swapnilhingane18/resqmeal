@@ -14,3 +14,9 @@ Thumbs.db
 tmp/
 dist/
 build/
+
+# Debug & local artifacts
+*.txt
+test_*.js
+server_output.txt
+build_error.txt

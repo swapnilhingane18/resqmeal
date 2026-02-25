@@ -49,6 +49,33 @@ const assignmentSchema = new mongoose.Schema(
     completedAt: {
       type: Date
     },
+    acceptedAt: {
+      type: Date
+    },
+    pickedUpAt: {
+      type: Date
+    },
+    deliveredAt: {
+      type: Date
+    },
+    deliveryVerified: {
+      type: Boolean,
+      default: false
+    },
+    rejectedAt: {
+      type: Date
+    },
+    escalationDepth: {
+      type: Number,
+      default: 0
+    },
+    responseTime: {
+      type: Number // in milliseconds
+    },
+    district: {
+      type: String,
+      default: "Pune"
+    },
     notes: String
   },
   {

@@ -9,6 +9,42 @@ const errorHandler = require("./middleware/errorHandler");
 const { sendError } = require("./utils/errorResponse");
 const { initExpiryCron, stopExpiryCron } = require("./services/expiryCron");
 const { normalizeAssignmentStatuses } = require("./services/statusMigration");
+const Food = require("./models/Food");
+
+const migrateFoodToGeoJSON = async () => {
+  try {
+    const foods = await Food.find({ location: { $exists: false } }).lean();
+    if (!foods || foods.length === 0) {
+      return;
+    }
+
+    console.log(`[migration] Found ${foods.length} food documents without GeoJSON locations... upgrading.`);
+    let count = 0;
+
+    // We execute in parallel, or batch them to avoid locking up Node entirely over HTTP
+    const updates = foods.map(async (food) => {
+      if (food.lat != null && food.lng != null) {
+        await Food.updateOne(
+          { _id: food._id },
+          {
+            $set: {
+              location: {
+                type: "Point",
+                coordinates: [Number(food.lng), Number(food.lat)]
+              }
+            }
+          }
+        );
+        count++;
+      }
+    });
+
+    await Promise.allSettled(updates);
+    console.log(`[migration] GeoJSON upgrade complete. Updated ${count} records.`);
+  } catch (err) {
+    console.error(`[migration] GeoJSON upgrade failed: ${err.message}`);
+  }
+};
 
 const authRoutes = require("./routes/auth.routes");
 const foodRoutes = require("./routes/food.routes");
@@ -16,6 +52,7 @@ const ngoRoutes = require("./routes/ngo.routes");
 const assignmentRoutes = require("./routes/assignment.routes");
 const demoRoutes = require("./routes/demo.routes");
 const emergencyRoutes = require("./routes/emergency.routes");
+const analyticsRoutes = require("./routes/analytics.routes");
 
 const app = express();
 
@@ -62,6 +99,7 @@ app.use("/api/ngos", ngoRoutes);
 app.use("/api/assignments", assignmentRoutes);
 app.use("/api/demo", demoRoutes);
 app.use("/api/emergency", emergencyRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 app.get("/health", (req, res) => {
   const dbState = getDbStateLabel();
@@ -132,6 +170,9 @@ const startServer = async () => {
     validateEnvironment();
     await connectDB();
     await normalizeAssignmentStatuses();
+
+    // Start the non-blocking legacy data migration in the background
+    migrateFoodToGeoJSON();
     initExpiryCron();
 
     const PORT = process.env.PORT || 3000;

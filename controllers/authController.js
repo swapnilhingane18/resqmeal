@@ -25,7 +25,7 @@ const normalizeRole = (inputRole) => {
 // @access  Public
 const registerUser = async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, password, role, capacity, latitude, longitude } = req.body;
 
         const normalizedName = typeof name === 'string' ? name.trim() : '';
         const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
@@ -41,6 +41,33 @@ const registerUser = async (req, res) => {
         if (!normalizedRole) {
             return sendError(res, 400, 'Invalid role specified', 'VALIDATION_ERROR');
         }
+
+        // --- NEW GEOSPATIAL VALIDATION FOR NGOS ---
+        let ngoLocationData = null;
+        let ngoCapacityData = null;
+
+        if (normalizedRole === 'NGO') {
+            if (capacity === undefined || capacity <= 0) {
+                return sendError(res, 400, 'Capacity must be greater than 0 for NGOs', 'VALIDATION_ERROR');
+            }
+            if (latitude === undefined || longitude === undefined) {
+                return sendError(res, 400, 'Latitude and Longitude are required for NGOs', 'VALIDATION_ERROR');
+            }
+
+            const parsedLat = Number(latitude);
+            const parsedLng = Number(longitude);
+            if (isNaN(parsedLat) || isNaN(parsedLng)) {
+                return sendError(res, 400, 'Invalid coordinate format', 'VALIDATION_ERROR');
+            }
+
+            // Map variables for injection
+            ngoCapacityData = Number(capacity);
+            ngoLocationData = {
+                type: 'Point',
+                coordinates: [parsedLng, parsedLat] // GeoJSON requires [lng, lat]
+            };
+        }
+        // ------------------------------------------
 
         // Check if user exists
         const userExists = await User.findOne({ email: normalizedEmail });
@@ -62,7 +89,13 @@ const registerUser = async (req, res) => {
                     name: normalizedName,
                     email: normalizedEmail,
                     password: normalizedPassword,
-                    role: normalizedRole
+                    role: normalizedRole,
+                    ...(normalizedRole === 'NGO' && {
+                        ngoDetails: {
+                            location: ngoLocationData,
+                            capacity: ngoCapacityData
+                        }
+                    })
                 }],
                 { session }
             );
@@ -81,10 +114,10 @@ const registerUser = async (req, res) => {
                         name: user.name,
                         email: user.email,
                         contact: 'Not Provided',
-                        lat: 18.5204,   // Default coordinates (Pune)
-                        lng: 73.8567,
+                        lat: Number(latitude),   // Dynamically grabbed from registration instead of hardcoded Pune
+                        lng: Number(longitude),
                         status: 'active',
-                        capacity: 100
+                        capacity: ngoCapacityData
                     }],
                     { session }
                 );

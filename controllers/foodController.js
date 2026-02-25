@@ -24,6 +24,14 @@ const createFood = async (req, res, next) => {
     const { type, quantity, unit, description, lat, lng, expiresAt, foodExpiresAt, donor, notes } =
       req.body;
 
+    let location = undefined;
+    if (lat && lng) {
+      location = {
+        type: "Point",
+        coordinates: [Number(lng), Number(lat)]
+      };
+    }
+
     const food = new Food({
       type,
       quantity,
@@ -31,6 +39,7 @@ const createFood = async (req, res, next) => {
       description,
       lat,
       lng,
+      location,
       expiresAt,
       foodExpiresAt,
       donor: {

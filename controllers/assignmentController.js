@@ -5,6 +5,10 @@ const Assignment = require("../models/Assignment");
 const { calculateScore } = require("../services/priorityEngine");
 const { sendError } = require("../utils/errorResponse");
 
+// Intelligent Weighted Routing Constants
+const DISTANCE_WEIGHT = 0.6;
+const RELIABILITY_WEIGHT = 0.4;
+
 const ACTIVE_ASSIGNMENT_STATUSES = ["pending", "accepted"];
 const ASSIGNMENT_STATUSES = ["pending", "accepted", "rejected", "timed_out", "completed", "cancelled"];
 
@@ -94,9 +98,42 @@ const findAndAssignBestNGO = async (foodInput, options = {}) => {
       assignmentCounts[item._id.toString()] = item.count;
     });
 
-    let bestNgo = null;
-    let bestScore = -1;
-    let bestScoreDetails = null;
+    // Intelligent Weighted Routing: Lightweight Pre-aggregation for historical reliability
+    let reliabilityStats = {};
+    try {
+      const historicalStats = await Assignment.aggregate([
+        {
+          $match: { ngo: { $in: ngos.map((n) => n._id) } }
+        },
+        {
+          $group: {
+            _id: "$ngo",
+            totalAssigned: { $sum: 1 },
+            accepted: { $sum: { $cond: [{ $in: ["$status", ["accepted", "completed"]] }, 1, 0] } },
+            timedOut: { $sum: { $cond: [{ $eq: ["$status", "timed_out"] }, 1, 0] } }
+          }
+        }
+      ]).session(session);
+
+      historicalStats.forEach((stat) => {
+        const acceptanceRate = stat.totalAssigned > 0 ? stat.accepted / stat.totalAssigned : 0.5;
+        // SLA Compliance: how often they pick up vs timeout on assignments
+        const slaCompliance = stat.totalAssigned > 0 ? (stat.totalAssigned - stat.timedOut) / stat.totalAssigned : 0.5;
+
+        // Reliability Score averages acceptance consistency and SLA response
+        const reliabilityScore = (acceptanceRate + slaCompliance) / 2;
+
+        reliabilityStats[stat._id.toString()] = {
+          acceptanceRate,
+          slaCompliance,
+          reliabilityScore: isNaN(reliabilityScore) ? 0.5 : Math.max(0, Math.min(1, reliabilityScore)) // Normalize 0-1
+        };
+      });
+    } catch (aggError) {
+      console.warn("[assignment] Failed to aggregate history, falling back to neutral reliability", aggError);
+    }
+
+    const validNgos = [];
 
     for (const ngo of ngos) {
       const activeAssignments = await Assignment.countDocuments({
@@ -108,32 +145,57 @@ const findAndAssignBestNGO = async (foodInput, options = {}) => {
         console.log(
           `NGO ${ngo.name} skipped — capacity reached (${activeAssignments}/${ngo.capacity})`
         );
-        continue; // Skip this NGO — capacity full
+        continue;
       }
 
       const currentActiveCount = assignmentCounts[ngo._id.toString()] || 0;
       const scoreResult = calculateScore(food, ngo, currentActiveCount);
 
-      if (scoreResult.totalScore > bestScore) {
-        bestScore = scoreResult.totalScore;
-        bestNgo = ngo;
-        bestScoreDetails = scoreResult;
-      }
+      // Intelligent Weighted Routing: Extract distance and normalize it inversely
+      const distance = scoreResult.distance || 0;
+      const inverseDistanceScore = 1 / (distance + 1); // Normalize so closer = vastly higher score (max nearly 1)
+
+      // Fetch aggregated reliability or fallback to neutral
+      const ngoStats = reliabilityStats[ngo._id.toString()] || { reliabilityScore: 0.5 };
+      const reliabilityScore = ngoStats.reliabilityScore;
+
+      // Compute weighted final score without touching absolute constraints
+      const finalScore = (DISTANCE_WEIGHT * inverseDistanceScore) + (RELIABILITY_WEIGHT * reliabilityScore);
+
+      validNgos.push({
+        ngo,
+        scoreResult,
+        finalScore,
+        routingMetrics: {
+          inverseDistanceScore,
+          reliabilityScore
+        }
+      });
     }
 
-    if (!bestNgo) {
+    if (validNgos.length === 0) {
       await session.abortTransaction();
       return { assignment: null, score: null };
     }
+
+    // Intelligent Weighted Routing: Sort descending strictly via final weighted score
+    validNgos.sort((a, b) => b.finalScore - a.finalScore);
+
+    const bestCandidate = validNgos[0];
+    const bestNgo = bestCandidate.ngo;
+    const bestScoreDetails = bestCandidate.scoreResult; // We preserve original legacy metrics to satisfy the schema tracking
+    const candidateQueue = validNgos.slice(1).map(item => item.ngo._id);
 
     // Conditional update prevents double-assignment under race.
     const foodUpdateResult = await Food.updateOne(
       { _id: food._id, status: "available" },
       {
         $set: {
-          status: "assigned",
+          status: "pending_acceptance",
           assignedNgo: bestNgo._id,
-          isAutoAssigned: autoAssign
+          isAutoAssigned: autoAssign,
+          acceptanceExpiresAt: new Date(Date.now() + 2 * 60 * 1000),
+          candidateQueue: candidateQueue
         }
       },
       { session }
@@ -168,7 +230,9 @@ const findAndAssignBestNGO = async (foodInput, options = {}) => {
           timeUrgency: bestScoreDetails.timeUrgency,
           responseScore: bestScoreDetails.responseScore,
           status: "pending",
-          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+          escalationDepth: 0,
+          district: food.district || "Pune",
+          expiresAt: new Date(Date.now() + 2 * 60 * 1000),
         },
       ],
       { session }
@@ -186,7 +250,7 @@ const findAndAssignBestNGO = async (foodInput, options = {}) => {
 
     return {
       assignment: await Assignment.findById(assignment._id).populate("food ngo"),
-      score: bestScore,
+      score: bestCandidate.finalScore,
     };
   } catch (error) {
     if (session.inTransaction()) {
@@ -357,13 +421,91 @@ const updateAssignmentStatus = async (req, res, next) => {
     if (wasActive && !willBeActive) capacityDelta = 1;
     if (!wasActive && willBeActive) capacityDelta = -1;
 
+    const now = new Date();
     existing.status = status;
-    existing.completedAt = status === "completed" ? new Date() : null;
+
+    // Analytics Metrics Interception
+    if (status === "completed") existing.completedAt = now;
+    if (status === "accepted") {
+      existing.acceptedAt = now;
+      if (existing.assignedAt) {
+        existing.responseTime = now.getTime() - existing.assignedAt.getTime();
+      }
+    }
+    if (status === "rejected") {
+      existing.rejectedAt = now;
+    }
+
     await existing.save({ session });
 
-    const foodUpdate = getFoodUpdateForStatus(status);
+    let foodUpdate = getFoodUpdateForStatus(status);
+
+    // Explicit 2-min limit handlers
+    if (status === "accepted") {
+      foodUpdate = { status: "assigned", acceptanceExpiresAt: undefined };
+    }
+
+    let escalatedToNext = false;
+
+    if (status === "rejected") {
+      const targetFood = await Food.findById(existing.food).session(session);
+      if (targetFood && targetFood.candidateQueue && targetFood.candidateQueue.length > 0) {
+        const nextNgoId = targetFood.candidateQueue.shift();
+
+        foodUpdate = null; // Cancel default status update
+
+        await Food.updateOne({ _id: targetFood._id }, {
+          $set: {
+            status: "pending_acceptance",
+            assignedNgo: nextNgoId,
+            acceptanceExpiresAt: new Date(Date.now() + 2 * 60 * 1000),
+            candidateQueue: targetFood.candidateQueue
+          }
+        }, { session });
+
+        await NGO.updateOne({ _id: nextNgoId }, { $inc: { capacity: -1 } }, { session });
+
+        // Use existing depth but cap to 0 just in case
+        const nextDepth = (existing.escalationDepth || 0) + 1;
+
+        await Assignment.create([{
+          food: targetFood._id,
+          ngo: nextNgoId,
+          score: 0,
+          distance: 0,
+          timeUrgency: 0,
+          responseScore: 0,
+          status: "pending",
+          escalationDepth: nextDepth,
+          district: targetFood.district || "Pune",
+          expiresAt: new Date(Date.now() + 2 * 60 * 1000)
+        }], { session });
+
+        escalatedToNext = true;
+      } else {
+        foodUpdate = { status: "available", assignedNgo: null, isAutoAssigned: false, acceptanceExpiresAt: undefined };
+      }
+    }
+
     if (foodUpdate) {
-      await Food.updateOne({ _id: existing.food }, { $set: foodUpdate }, { session });
+      // Use $unset for undefined values instead of $set
+      const setPayload = {};
+      const unsetPayload = {};
+
+      for (const [key, val] of Object.entries(foodUpdate)) {
+        if (val === undefined || val === null) {
+          if (key === "acceptanceExpiresAt") unsetPayload[key] = 1;
+          else setPayload[key] = null;
+        } else {
+          setPayload[key] = val;
+        }
+      }
+
+      const updateOp = {};
+      if (Object.keys(setPayload).length > 0) updateOp.$set = setPayload;
+      if (Object.keys(unsetPayload).length > 0) updateOp.$unset = unsetPayload;
+
+      await Food.updateOne({ _id: existing.food }, updateOp, { session });
     }
 
     if (capacityDelta !== 0) {
@@ -401,6 +543,53 @@ const updateAssignmentStatus = async (req, res, next) => {
   }
 };
 
+// Trust Layer: Verified Pickup
+const markPickedUp = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const assignment = await Assignment.findById(id);
+
+    if (!assignment) {
+      return sendError(res, 404, "Assignment not found", "NOT_FOUND");
+    }
+
+    if (assignment.status !== "accepted") {
+      return sendError(res, 400, "Can only mark accepted assignments as picked up", "VALIDATION_ERROR");
+    }
+
+    assignment.pickedUpAt = new Date();
+    await assignment.save();
+
+    return res.status(200).json({ message: "Pickup verified", assignment });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// Trust Layer: Verified Delivery
+const markDelivered = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const assignment = await Assignment.findById(id);
+
+    if (!assignment) {
+      return sendError(res, 404, "Assignment not found", "NOT_FOUND");
+    }
+
+    if (assignment.status !== "accepted") {
+      return sendError(res, 400, "Can only mark accepted assignments as delivered", "VALIDATION_ERROR");
+    }
+
+    assignment.deliveredAt = new Date();
+    assignment.deliveryVerified = true;
+    await assignment.save();
+
+    return res.status(200).json({ message: "Delivery verified", assignment });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   assignFood,
   getAllAssignments,
@@ -408,4 +597,6 @@ module.exports = {
   getAssignmentById,
   updateAssignmentStatus,
   findAndAssignBestNGO,
+  markPickedUp,
+  markDelivered,
 };

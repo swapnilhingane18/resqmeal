@@ -21,6 +21,10 @@ const foodSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
+    district: {
+      type: String,
+      default: "Pune"
+    },
     lat: {
       type: Number,
       required: [true, "Latitude is required"]
@@ -76,11 +80,31 @@ const foodSchema = new mongoose.Schema(
     notes: {
       type: String,
       trim: true
+    },
+    acceptanceExpiresAt: {
+      type: Date
+    },
+    candidateQueue: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "NGO"
+      }
+    ],
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"]
+      },
+      coordinates: {
+        type: [Number]
+      }
     }
   },
   {
     timestamps: true
   }
 );
+
+foodSchema.index({ location: "2dsphere" });
 
 module.exports = mongoose.model("Food", foodSchema);

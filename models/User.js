@@ -37,11 +37,32 @@ const userSchema = new mongoose.Schema({
             required: false
         }
     },
+    ngoDetails: {
+        location: {
+            type: {
+                type: String,
+                enum: ['Point'],
+                required: false
+            },
+            coordinates: {
+                type: [Number], // [longitude, latitude]
+                required: false
+            }
+        },
+        capacity: {
+            type: Number,
+            min: 0,
+            required: false
+        }
+    },
     createdAt: {
         type: Date,
         default: Date.now
     }
 });
+
+// Create 2dsphere index on ngoDetails.location
+userSchema.index({ 'ngoDetails.location': '2dsphere' });
 
 // Encrypt password using bcrypt
 userSchema.pre('save', async function () {

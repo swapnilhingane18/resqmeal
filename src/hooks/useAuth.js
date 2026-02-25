@@ -35,10 +35,10 @@ export const useAuthStore = create(
                 }
             },
 
-            register: async (name, email, password, role) => {
+            register: async (name, email, password, role, extraData = {}) => {
                 set({ isLoading: true, error: null });
                 try {
-                    const response = await api.post('/auth/register', { name, email, password, role });
+                    const response = await api.post('/auth/register', { name, email, password, role, ...extraData });
                     const { token, ...userData } = response.data;
 
                     set({
