@@ -10,6 +10,7 @@ const {
   updateNGOStatus
 } = require('../controllers/ngoController');
 const { getMyAssignments } = require('../controllers/assignmentController');
+const { acceptFood, rejectFood, toggleLocationSharing } = require('../controllers/volunteerController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorizeRoles } = require('../middleware/roleMiddleware');
 
@@ -24,5 +25,10 @@ router.get('/assignments', protect, authorizeRoles('NGO', 'ADMIN'), getMyAssignm
 router.get('/:id', getNGOById);
 router.put('/:id', protect, authorizeRoles('NGO', 'ADMIN'), updateNGO);
 router.delete('/:id', protect, authorizeRoles('ADMIN'), deleteNGO);
+
+// Volunteer tracking routes
+router.post('/accept/:foodId', protect, authorizeRoles('NGO', 'ADMIN'), acceptFood);
+router.post('/reject/:foodId', protect, authorizeRoles('NGO', 'ADMIN'), rejectFood);
+router.patch('/location-sharing/:foodId', protect, authorizeRoles('NGO', 'ADMIN'), toggleLocationSharing);
 
 module.exports = router;

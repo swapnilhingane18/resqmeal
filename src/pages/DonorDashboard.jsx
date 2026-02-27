@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { foodAPI, assignmentAPI } from "../api";
+import LiveTrackingMap from "../components/LiveTrackingMap";
 
 export default function DonorDashboard() {
     const { user } = useAuth();
@@ -47,7 +48,6 @@ export default function DonorDashboard() {
     }, []);
 
     const getLatestAssignment = (foodId) => {
-        // Assignments are pre-sorted by assignedAt desc from backend
         return assignments.find((a) => String(a.food?._id || a.food) === String(foodId)) || null;
     };
 
@@ -72,7 +72,7 @@ export default function DonorDashboard() {
         { key: "pickupsCompleted", label: "Completed Pickups", icon: "✅" },
     ];
 
-    const activeDonations = donations.filter((f) => ["available", "pending_acceptance", "assigned", "escalated"].includes(f.status));
+    const activeDonations = donations.filter((f) => ["available", "pending_acceptance", "assigned", "escalated", "matching"].includes(f.status));
     const donationHistory = donations.filter((f) => ["picked_up", "delivered", "expired", "timed_out", "cancelled"].includes(f.status));
 
     if (loading) {
@@ -151,7 +151,7 @@ export default function DonorDashboard() {
                             {activeDonations.map((food) => {
                                 const latestAssign = getLatestAssignment(food._id);
                                 let statusUI = null;
-                                let isExpiredFallback = food.status === 'available' && latestAssign && latestAssign.status === 'timed_out';
+                                const isExpiredFallback = food.status === 'available' && latestAssign && latestAssign.status === 'timed_out';
 
                                 if (food.status === 'pending_acceptance') {
                                     if (latestAssign && latestAssign.escalationDepth > 0) {
@@ -181,35 +181,38 @@ export default function DonorDashboard() {
                                     }
                                 } else if (food.status === 'assigned') {
                                     const respTimeSecs = latestAssign?.responseTime ? (latestAssign.responseTime / 1000).toFixed(1) : '< 1';
+                                    const pickupLocation = food.location?.coordinates?.length === 2
+                                        ? { lat: food.location.coordinates[1], lng: food.location.coordinates[0] }
+                                        : null;
                                     statusUI = (
-                                        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                                            <div className="flex items-start gap-3">
-                                                <div className="mt-0.5 text-lg">✅</div>
-                                                <div className="w-full">
-                                                    <h4 className="text-green-900 font-bold text-sm">Accepted by {latestAssign?.ngo?.name || "NGO Partner"}</h4>
-                                                    <p className="text-green-800 text-xs mt-1">SLA fulfilled • Response Time: {respTimeSecs} seconds</p>
-
-                                                    {(latestAssign?.pickedUpAt || latestAssign?.deliveryVerified) && (
-                                                        <div className="mt-3 bg-white bg-opacity-60 rounded-lg p-3 border border-green-100 flex flex-col gap-1.5">
-                                                            <div className="flex items-center gap-2 text-xs font-bold text-green-900">
-                                                                <span>🔒</span> Verified Delivery Tracking
+                                        <div className="space-y-3">
+                                            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                                                <div className="flex items-start gap-3">
+                                                    <div className="mt-0.5 text-lg">✅</div>
+                                                    <div className="w-full">
+                                                        <h4 className="text-green-900 font-bold text-sm">Accepted by {latestAssign?.ngo?.name || "NGO Partner"}</h4>
+                                                        <p className="text-green-800 text-xs mt-1">SLA fulfilled • Response Time: {respTimeSecs} seconds</p>
+                                                        {(latestAssign?.pickedUpAt || latestAssign?.deliveryVerified) && (
+                                                            <div className="mt-3 flex flex-col gap-1.5">
+                                                                {latestAssign?.pickedUpAt && (
+                                                                    <div className="flex items-center gap-2 text-xs text-green-800">
+                                                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                                                        Picked up at {new Date(latestAssign.pickedUpAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                    </div>
+                                                                )}
+                                                                {latestAssign?.deliveryVerified && (
+                                                                    <div className="flex items-center gap-2 text-xs text-green-800 font-semibold">
+                                                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                                                        Delivery Verified
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                            {latestAssign?.pickedUpAt && (
-                                                                <div className="flex items-center gap-2 text-xs text-green-800">
-                                                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                                                                    Picked up at {new Date(latestAssign.pickedUpAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                                </div>
-                                                            )}
-                                                            {latestAssign?.deliveryVerified && (
-                                                                <div className="flex items-center gap-2 text-xs text-green-800 font-semibold">
-                                                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                                                                    Delivery Verified
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
+                                            {/* Live volunteer tracking map */}
+                                            <LiveTrackingMap foodId={food._id} donorLocation={pickupLocation} />
                                         </div>
                                     );
                                 } else if (isExpiredFallback) {
@@ -289,8 +292,7 @@ export default function DonorDashboard() {
                                                     <span className="text-xs text-neutral-500 capitalize">{food.type}</span>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <span className={`inline-block px-2.5 py-1 rounded-md text-xs font-bold ${food.status === "delivered" || food.status === "picked_up" ? "bg-green-100 text-green-700" : "bg-neutral-100 text-neutral-600"
-                                                        }`}>
+                                                    <span className={`inline-block px-2.5 py-1 rounded-md text-xs font-bold ${food.status === "delivered" || food.status === "picked_up" ? "bg-green-100 text-green-700" : "bg-neutral-100 text-neutral-600"}`}>
                                                         {food.status === "delivered" || food.status === "picked_up" ? "✅ Success" : "Archived"}
                                                     </span>
                                                 </td>

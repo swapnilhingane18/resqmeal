@@ -19,6 +19,7 @@ import api from "../api/axios";
 import { foodAPI, assignmentAPI } from "../api";
 import Spinner from "../components/ui/Spinner";
 import CountUp from "react-countup";
+import NGOAcceptancePanel from "../components/NGOAcceptancePanel";
 
 const URGENCY_COLORS = ["#dc2626", "#f59e0b", "#16a34a"];
 
@@ -101,6 +102,9 @@ export default function NGODashboard() {
   // Scan State
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
+
+  // Pending Acceptance foods for this NGO
+  const [pendingFoods, setPendingFoods] = useState([]);
 
   // NGO Status State
   const [ngoProfile, setNgoProfile] = useState(null);
@@ -294,6 +298,33 @@ export default function NGODashboard() {
 
   useEffect(() => {
     fetchDashboard();
+
+    // Poll pending assignments every 10 seconds
+    const pollPendingFoods = async () => {
+      try {
+        if (!isNGO) return;
+        const ngoRes = await api.get("/ngos/me").catch(() => null);
+        if (!ngoRes?.data?.ngo?._id) return;
+        const ngoId = ngoRes.data.ngo._id;
+        // Get foods that are pending_acceptance or assigned for this NGO
+        const foodRes = await api.get("/food?status=").catch(() => null);
+        const allFoods = foodRes?.data?.foods || [];
+        const myPending = allFoods.filter(
+          (f) =>
+            ["pending_acceptance", "assigned"].includes(f.status) &&
+            f.assignedNgo && String(f.assignedNgo) === String(ngoId)
+        );
+        setPendingFoods(myPending);
+      } catch (err) {
+        console.error("Pending foods poll error:", err);
+      }
+    };
+
+    if (isNGO) {
+      pollPendingFoods();
+      const interval = setInterval(pollPendingFoods, 10000);
+      return () => clearInterval(interval);
+    }
   }, []);
 
   if (loading) {
@@ -397,6 +428,31 @@ export default function NGODashboard() {
       {error && (
         <div className="mb-8 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
+        </div>
+      )}
+
+      {/* PENDING ACCEPTANCE FOOD PANEL — NGO ONLY */}
+      {isNGO && pendingFoods.length > 0 && (
+        <div className="mb-8">
+          <h3 className="text-lg font-bold text-neutral-900 mb-4 flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-yellow-500" />
+            </span>
+            Pending Assignment Actions ({pendingFoods.length})
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {pendingFoods.map((food) => (
+              <NGOAcceptancePanel
+                key={food._id}
+                food={food}
+                onActionComplete={() => {
+                  setPendingFoods((prev) => prev.filter((f) => f._id !== food._id));
+                  fetchDashboard();
+                }}
+              />
+            ))}
+          </div>
         </div>
       )}
 

@@ -47,8 +47,13 @@ const foodSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["available", "pending_acceptance", "assigned", "picked_up", "delivered", "expired", "escalated"],
+      enum: ["available", "pending_acceptance", "assigned", "matching", "picked_up", "delivered", "expired", "escalated"],
       default: "available"
+    },
+    engineStage: {
+      type: String,
+      enum: ["queued", "matching", "accepted", "rejected", "picked_up", "delivered", null],
+      default: null
     },
     declinedBy: [
       {
@@ -92,6 +97,28 @@ const foodSchema = new mongoose.Schema(
         type: [Number],
         required: true
       }
+    },
+    volunteer: {
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null
+      },
+      location: {
+        type: {
+          type: String,
+          enum: ["Point"],
+          default: "Point"
+        },
+        coordinates: {
+          type: [Number],
+          default: []
+        }
+      },
+      isSharingLocation: {
+        type: Boolean,
+        default: false
+      }
     }
   },
   {
@@ -100,5 +127,6 @@ const foodSchema = new mongoose.Schema(
 );
 
 foodSchema.index({ location: "2dsphere" });
+foodSchema.index({ "volunteer.location": "2dsphere" });
 
 module.exports = mongoose.model("Food", foodSchema);
