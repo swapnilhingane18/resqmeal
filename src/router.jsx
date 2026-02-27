@@ -5,15 +5,15 @@ import Spinner from './components/ui/Spinner';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuth } from './hooks/useAuth';
 
-const LandingPage = lazy(() => import('./pages/LandingPage'));
-const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
-const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
-const AddFoodPage = lazy(() => import('./pages/donor/AddFoodPage'));
-const NGOFeedPage = lazy(() => import('./pages/ngo/NGOFeedPage'));
-const NGOAssignmentsPage = lazy(() => import('./pages/ngo/NGOAssignmentsPage'));
-const NGODashboard = lazy(() => import('./pages/NGODashboard'));
-const DonorDashboard = lazy(() => import('./pages/DonorDashboard'));
-const NotFound = lazy(() => import('./pages/NotFound'));
+const LandingPage = lazy(() => import('./pages/LandingPage.jsx'));
+const LoginPage = lazy(() => import('./pages/auth/LoginPage.jsx'));
+const RegisterPage = lazy(() => import('./pages/auth/RegisterPage.jsx'));
+const AddFoodPage = lazy(() => import('./pages/donor/AddFoodPage.jsx'));
+const NGOFeedPage = lazy(() => import('./pages/ngo/NGOFeedPage.jsx'));
+const NGOAssignmentsPage = lazy(() => import('./pages/ngo/NGOAssignmentsPage.jsx'));
+const NGODashboard = lazy(() => import('./pages/NGODashboard.jsx'));
+const DonorDashboard = lazy(() => import('./pages/DonorDashboard.jsx'));
+const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 
 const SuspenseWrapper = ({ children }) => (
     <Suspense fallback={

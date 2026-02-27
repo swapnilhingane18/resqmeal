@@ -25,14 +25,6 @@ const foodSchema = new mongoose.Schema(
       type: String,
       default: "Pune"
     },
-    lat: {
-      type: Number,
-      required: [true, "Latitude is required"]
-    },
-    lng: {
-      type: Number,
-      required: [true, "Longitude is required"]
-    },
     expiresAt: {
       type: Date,
       required: [true, "Expiration time is required"],
@@ -93,10 +85,12 @@ const foodSchema = new mongoose.Schema(
     location: {
       type: {
         type: String,
-        enum: ["Point"]
+        enum: ["Point"],
+        required: true
       },
       coordinates: {
-        type: [Number]
+        type: [Number],
+        required: true
       }
     }
   },

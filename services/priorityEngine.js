@@ -39,7 +39,13 @@ const calculateDistanceScore = (distance) => {
 };
 
 const calculateScore = (food, ngo, activeAssignments = 0) => {
-  const distance = calculateDistance(food.lat, food.lng, ngo.lat, ngo.lng);
+  // Extract from GeoJSON location.coordinates [lng, lat]
+  const foodLng = food.location?.coordinates?.[0] ?? food.lng;
+  const foodLat = food.location?.coordinates?.[1] ?? food.lat;
+  const ngoLng = ngo.location?.coordinates?.[0] ?? ngo.lng;
+  const ngoLat = ngo.location?.coordinates?.[1] ?? ngo.lat;
+
+  const distance = calculateDistance(foodLat, foodLng, ngoLat, ngoLng);
 
   // 1. Get Base Urgency (Time + Quantity)
   const { urgencyScore: baseUrgency } = calculateUrgency(food);

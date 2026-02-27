@@ -20,6 +20,10 @@ const withUrgency = (foodDoc) => {
 // Create food listing and auto-assign to best NGO
 const createFood = async (req, res, next) => {
   try {
+    console.log("🚀 ENTERED createFood");
+    console.log("📦 Incoming Payload:", req.body);
+    console.log("👤 req.user:", req.user);
+
     console.log("Incoming food payload:", req.body);
     const { type, quantity, unit, description, lat, lng, expiresAt, foodExpiresAt, donor, notes } =
       req.body;
@@ -30,6 +34,7 @@ const createFood = async (req, res, next) => {
         type: "Point",
         coordinates: [Number(lng), Number(lat)]
       };
+      console.log("🧭 GeoJSON Created:", location.coordinates);
     }
 
     const food = new Food({
@@ -37,8 +42,6 @@ const createFood = async (req, res, next) => {
       quantity,
       unit,
       description,
-      lat,
-      lng,
       location,
       expiresAt,
       foodExpiresAt,
@@ -49,16 +52,22 @@ const createFood = async (req, res, next) => {
       notes
     });
 
+    const validationError = food.validateSync();
+    if (validationError) {
+      console.error("❌ Mongoose Validation Error:", validationError);
+    }
+
     await food.save();
 
     // ---------------------------------------------------------
     // EMERGENCY RESCUE ENGINE TRIGGER
     // ---------------------------------------------------------
+    console.log("🚀 Auto-assignment called for food:", food._id);
     const emergencyResult = await checkAndTriggerAutoAssignment(food);
 
     // If auto-assigned by emergency trigger, return that result
     if (emergencyResult.autoTriggered && emergencyResult.success) {
-      const updatedFood = await Food.findById(food._id).populate("assignedNgo", "name lat lng contact");
+      const updatedFood = await Food.findById(food._id).populate("assignedNgo", "name location contact");
       return res.status(201).json({
         message: "⚡ EMERGENCY RESCUE ACTIVATED: Food auto-assigned!",
         food: withUrgency(updatedFood),
@@ -86,7 +95,7 @@ const createFood = async (req, res, next) => {
       }
     }
 
-    const finalFood = await Food.findById(food._id).populate("assignedNgo", "name lat lng contact");
+    const finalFood = await Food.findById(food._id).populate("assignedNgo", "name location contact");
 
     res.status(201).json({
       message: assignmentMsg,
@@ -96,16 +105,12 @@ const createFood = async (req, res, next) => {
       autoTriggered: false
     });
   } catch (error) {
-    if (error.name === "ValidationError") {
-      console.error("Food Validation Error:", error.errors);
-      return res.status(400).json({
-        success: false,
-        message: error.message,
-        details: Object.values(error.errors).map((e) => e.message)
-      });
-    }
-    console.error("Food Create Error:", error);
-    next(error);
+    console.error("🔥 FOOD CREATE ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+      stack: error.stack,
+    });
   }
 };
 

@@ -7,7 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 import Button from '../../components/ui/Button';
 
 // Lazy loading the map modal for performance
-const MapPickerModal = lazy(() => import('../../components/MapPickerModal'));
+const MapPickerModal = lazy(() => import('../../components/MapPickerModal.jsx'));
 
 const AddFoodPage = () => {
     const navigate = useNavigate();

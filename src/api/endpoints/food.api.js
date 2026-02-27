@@ -2,6 +2,7 @@ import api from '../axios';
 
 export const foodAPI = {
     create: async (data) => {
+        console.log("📡 Sending with token:", localStorage.getItem("token"));
         const response = await api.post('/food', data);
         return response.data;
     },

@@ -7,25 +7,39 @@ const api = axios.create({
     },
 });
 
-api.interceptors.request.use(
-    (config) => {
-        const storedAuth = localStorage.getItem('auth_storage');
-        if (storedAuth) {
-            try {
-                const parsed = JSON.parse(storedAuth);
-                if (parsed.state && parsed.state.token) {
-                    config.headers.Authorization = `Bearer ${parsed.state.token}`;
-                }
-            } catch (error) {
-                localStorage.removeItem('auth_storage');
+api.interceptors.request.use((config) => {
+    const storedAuth = localStorage.getItem('auth_storage');
+
+    if (storedAuth) {
+        try {
+            const parsed = JSON.parse(storedAuth);
+
+            // Flexible token resolution
+            const token =
+                parsed?.state?.token ||
+                parsed?.token ||
+                parsed?.state?.auth?.token ||
+                parsed?.auth?.token;
+
+            console.log("🛰 Extracted Token:", token);
+
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+                console.log("✅ Authorization header attached");
+            } else {
+                console.warn("⚠ No token found in auth_storage structure");
             }
+        } catch (err) {
+            console.error("❌ Failed to parse auth_storage:", err);
         }
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
+    } else {
+        console.warn("⚠ auth_storage not found in localStorage");
     }
-);
+
+    return config;
+}, (error) => {
+    return Promise.reject(error);
+});
 
 api.interceptors.response.use(
     (response) => response,

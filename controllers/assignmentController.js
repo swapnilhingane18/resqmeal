@@ -48,6 +48,7 @@ const findAndAssignBestNGO = async (foodInput, options = {}) => {
 
   try {
     session.startTransaction();
+    console.log("🧪 Transaction started");
 
     const food = await Food.findById(foodId).session(session);
     if (!food) {
@@ -62,19 +63,49 @@ const findAndAssignBestNGO = async (foodInput, options = {}) => {
     if (existing) {
       console.log(`Food ${food._id} already assigned — skipping duplicate assignment`);
       await session.abortTransaction();
+      console.log("🧪 Transaction aborted");
       return { assignment: existing, score: null };
     }
 
     // Re-check status inside transaction to prevent race conditions.
     if (food.status !== "available") {
       await session.abortTransaction();
+      console.log("🧪 Transaction aborted");
       console.warn("[assignment] transaction aborted: food not available", { foodId: String(foodId) });
       return { assignment: null, score: null };
     }
 
-    const ngos = await NGO.find({ status: "active", capacity: { $gt: 0 } }).session(session);
+    console.log("🔎 Matching engine triggered for food:", food._id);
+    console.log("📍 Food location:", food.location);
+    console.log("🔍 Searching active NGOs...");
+
+    // Geo query constraint (~10km max distance)
+    const MAX_DISTANCE_METERS = 10000;
+
+    let geoQuery = {};
+    if (food.location && food.location.coordinates && food.location.coordinates.length === 2) {
+      geoQuery = {
+        location: {
+          $near: {
+            $geometry: food.location,
+            $maxDistance: MAX_DISTANCE_METERS
+          }
+        }
+      };
+    }
+
+    const ngos = await NGO.find({
+      status: "active",
+      capacity: { $gt: 0 },
+      ...geoQuery
+    }).session(session);
+
+    console.log("🎯 NGOs found:", ngos.length);
+
     if (ngos.length === 0) {
+      console.log("⚠ No eligible NGO found within constraints.");
       await session.abortTransaction();
+      console.log("🧪 Transaction aborted");
       return { assignment: null, score: null };
     }
 
@@ -175,6 +206,7 @@ const findAndAssignBestNGO = async (foodInput, options = {}) => {
 
     if (validNgos.length === 0) {
       await session.abortTransaction();
+      console.log("🧪 Transaction aborted");
       return { assignment: null, score: null };
     }
 
@@ -239,6 +271,8 @@ const findAndAssignBestNGO = async (foodInput, options = {}) => {
     );
 
     await session.commitTransaction();
+    console.log("🧪 Transaction committed");
+    console.log("✅ Assigned NGO:", bestNgo._id);
     console.log("[assignment] transaction committed", {
       assignmentId: String(assignment._id),
       foodId: String(food._id),
@@ -255,6 +289,7 @@ const findAndAssignBestNGO = async (foodInput, options = {}) => {
   } catch (error) {
     if (session.inTransaction()) {
       await session.abortTransaction();
+      console.log("🧪 Transaction aborted (error path)");
     }
     console.error("[assignment] transaction aborted", {
       message: error.message,

@@ -596,34 +596,41 @@ export default function NGODashboard() {
 
             {(mapData?.ngos || [])
               .filter((ngo) => ngo?.lat != null && ngo?.lng != null)
-              .map((ngo) => (
-                <CircleMarker
-                  key={`ngo-${ngo._id}`}
-                  center={[ngo.lat, ngo.lng]}
-                  radius={8}
-                  pathOptions={{ color: "#7e22ce", fillColor: "#a855f7", fillOpacity: 0.9 }}
-                >
-                  <Popup>
-                    <div className="text-sm">
-                      <p className="font-semibold">{ngo.name || "NGO"}</p>
-                      <p>Active: {ngo.active ? "Yes" : "No"}</p>
-                    </div>
-                  </Popup>
-                </CircleMarker>
-              ))}
+              .map((ngo) => {
+                const isActive = ngo.active;
+                return (
+                  <CircleMarker
+                    key={`ngo-${ngo._id}`}
+                    center={[ngo.lat, ngo.lng]}
+                    radius={8}
+                    pathOptions={{
+                      color: isActive ? "#000000" : "#eab308",
+                      fillColor: isActive ? "#000000" : "#facc15",
+                      fillOpacity: 0.9
+                    }}
+                  >
+                    <Popup>
+                      <div className="text-sm">
+                        <p className="font-semibold">{ngo.name || "NGO"}</p>
+                        <p>Active: {isActive ? "Yes" : "No"}</p>
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                );
+              })}
 
             {(mapData?.food || [])
               .filter((item) => item?.lat != null && item?.lng != null)
               .map((item) => {
-                const isAssigned = item.status === "assigned";
+                const isExpired = item.status === "expired";
                 return (
                   <CircleMarker
                     key={`food-${item._id}`}
                     center={[item.lat, item.lng]}
                     radius={7}
                     pathOptions={{
-                      color: isAssigned ? "#15803d" : "#b91c1c",
-                      fillColor: isAssigned ? "#22c55e" : "#ef4444",
+                      color: isExpired ? "#b91c1c" : "#15803d",
+                      fillColor: isExpired ? "#ef4444" : "#22c55e",
                       fillOpacity: 0.9,
                     }}
                   >

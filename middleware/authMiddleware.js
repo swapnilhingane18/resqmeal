@@ -27,6 +27,10 @@ const protect = async (req, res, next) => {
                 return sendError(res, 401, 'Not authorized, user not found', 'AUTH_USER_NOT_FOUND');
             }
 
+            console.log("🔐 TOKEN HEADER:", req.headers.authorization);
+            console.log("🔐 DECODED USER:", decoded);
+            console.log("🔐 FINAL req.user:", req.user);
+
             next();
         } catch (error) {
             console.error('JWT Verification Error:', error.stack || error.message);

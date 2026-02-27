@@ -7,13 +7,16 @@ const ngoSchema = new mongoose.Schema(
       required: [true, "NGO name is required"],
       trim: true
     },
-    lat: {
-      type: Number,
-      required: [true, "Latitude is required"]
-    },
-    lng: {
-      type: Number,
-      required: [true, "Longitude is required"]
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        required: true
+      },
+      coordinates: {
+        type: [Number],
+        required: true
+      }
     },
     avgResponseTime: {
       type: Number,
@@ -48,5 +51,7 @@ const ngoSchema = new mongoose.Schema(
     timestamps: true
   }
 );
+
+ngoSchema.index({ location: "2dsphere" });
 
 module.exports = mongoose.model("NGO", ngoSchema);

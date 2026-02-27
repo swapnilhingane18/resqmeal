@@ -66,6 +66,7 @@ const registerUser = async (req, res) => {
                 type: 'Point',
                 coordinates: [parsedLng, parsedLat] // GeoJSON requires [lng, lat]
             };
+            console.log("🧭 GeoJSON Created:", ngoLocationData.coordinates);
         }
         // ------------------------------------------
 
@@ -114,8 +115,7 @@ const registerUser = async (req, res) => {
                         name: user.name,
                         email: user.email,
                         contact: 'Not Provided',
-                        lat: Number(latitude),   // Dynamically grabbed from registration instead of hardcoded Pune
-                        lng: Number(longitude),
+                        location: ngoLocationData, // Replaces lat/lng primitive inserts
                         status: 'active',
                         capacity: ngoCapacityData
                     }],
