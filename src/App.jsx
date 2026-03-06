@@ -2,6 +2,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import ToastContainer from './components/ui/ToastContainer';
 import Button from './components/ui/Button';
+import Footer from './components/ui/Footer';
 
 function App() {
   const navigate = useNavigate();
@@ -44,8 +45,8 @@ function App() {
                   <button
                     onClick={() => navigate('/donor/add-food')}
                     className={`text-sm font-semibold px-4 py-2 rounded-full transition-all duration-200 ${location.pathname === '/donor/add-food'
-                        ? 'bg-green-100 text-green-700 shadow-sm'
-                        : 'text-neutral-600 hover:bg-neutral-100 hover:text-green-600'
+                      ? 'bg-green-100 text-green-700 shadow-sm'
+                      : 'text-neutral-600 hover:bg-neutral-100 hover:text-green-600'
                       }`}
                   >
                     Donate Food
@@ -57,8 +58,8 @@ function App() {
                     <button
                       onClick={() => navigate('/ngo/feed')}
                       className={`text-sm font-semibold px-4 py-2 rounded-full transition-all duration-200 ${location.pathname === '/ngo/feed'
-                          ? 'bg-green-100 text-green-700 shadow-sm'
-                          : 'text-neutral-600 hover:bg-neutral-100 hover:text-green-600'
+                        ? 'bg-green-100 text-green-700 shadow-sm'
+                        : 'text-neutral-600 hover:bg-neutral-100 hover:text-green-600'
                         }`}
                     >
                       Available Food
@@ -66,8 +67,8 @@ function App() {
                     <button
                       onClick={() => navigate('/ngo/assignments')}
                       className={`text-sm font-semibold px-4 py-2 rounded-full transition-all duration-200 ${location.pathname === '/ngo/assignments'
-                          ? 'bg-green-100 text-green-700 shadow-sm'
-                          : 'text-neutral-600 hover:bg-neutral-100 hover:text-green-600'
+                        ? 'bg-green-100 text-green-700 shadow-sm'
+                        : 'text-neutral-600 hover:bg-neutral-100 hover:text-green-600'
                         }`}
                     >
                       My Pickups
@@ -102,6 +103,9 @@ function App() {
       <main>
         <Outlet />
       </main>
+
+      {/* Footer Component */}
+      <Footer />
 
       {/* Toast Notifications */}
       <ToastContainer />
