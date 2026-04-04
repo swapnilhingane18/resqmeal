@@ -19,29 +19,44 @@ const LandingPage = () => {
                 </div>
 
                 <h1 className="text-5xl md:text-7xl font-extrabold text-neutral-900 tracking-tight leading-tight mb-6">
-                    Bridge the gap between <br className="hidden md:block" />
+                    Eliminate{' '}
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-500">
-                        surplus and scarcity
+                        food waste.
+                    </span>
+                    <br className="hidden md:block" />
+                    Feed{' '}
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-500">
+                        those in need.
                     </span>
                 </h1>
 
-                <p className="text-xl md:text-2xl text-neutral-600 mb-10 max-w-2xl mx-auto leading-relaxed">
+                <p className="text-xl md:text-2xl text-neutral-600 mb-4 max-w-2xl mx-auto leading-relaxed">
                     ResQMeal uses intelligent matching to instantly connect food donors with nearby NGOs, reducing waste and fighting hunger.
+                </p>
+
+                {/* Trust Line */}
+                <p className="text-sm text-neutral-400 font-medium mb-10 flex items-center justify-center gap-2">
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-100 text-green-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                    </span>
+                    Trusted by 100+ NGOs across India
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                     <Button
                         onClick={() => navigate('/register')}
                         size="lg"
-                        className="bg-neutral-900 hover:bg-neutral-800 text-white shadow-lg shadow-neutral-500/20 px-8 py-4 text-lg w-full sm:w-auto transform hover:-translate-y-1 transition-all duration-200"
+                        className="bg-neutral-900 hover:bg-neutral-800 text-white shadow-md hover:shadow-lg px-8 py-4 text-lg w-full sm:w-auto transform hover:scale-105 transition-all duration-200"
                     >
-                        Get Started
+                        Donate Food
                     </Button>
                     <Button
                         onClick={() => navigate('/login')}
                         variant="outline"
                         size="lg"
-                        className="px-8 py-4 text-lg w-full sm:w-auto"
+                        className="px-8 py-4 text-lg w-full sm:w-auto transform hover:scale-105 transition-all duration-200 shadow-sm hover:shadow-md"
                     >
                         Login
                     </Button>
