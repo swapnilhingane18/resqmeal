@@ -14,9 +14,7 @@ const connectDB = async () => {
   for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
     try {
       console.log(`[db] connecting to MongoDB (attempt ${attempt}/${maxRetries})...`);
-      const isAtlasSrv = uri.startsWith("mongodb+srv://");
       const conn = await mongoose.connect(uri, {
-        tls: isAtlasSrv,
         serverSelectionTimeoutMS: 5000,
         socketTimeoutMS: 45000,
       });
