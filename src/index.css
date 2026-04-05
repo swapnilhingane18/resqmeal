@@ -34,6 +34,7 @@
   body {
     @apply font-sans text-neutral-900 bg-neutral-50 antialiased;
     font-family: 'Inter', sans-serif;
+    overflow-x: hidden;
   }
 
   *:focus-visible {
