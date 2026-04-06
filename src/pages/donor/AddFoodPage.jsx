@@ -147,6 +147,14 @@ const AddFoodPage = () => {
     // --- Submission ---
     const onSubmit = async (data) => {
         setShowErrorSummary(false); // Clear errors UI if any
+
+        // Login check — redirect unauthenticated users
+        if (!user) {
+            toast.error("Please log in before submitting a donation");
+            navigate('/login');
+            return;
+        }
+
         try {
             // STEP 5: Safe submit guard
             if (!data.lat || !data.lng) {
