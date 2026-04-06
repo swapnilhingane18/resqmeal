@@ -587,6 +587,7 @@ const AddFoodPage = () => {
                                 placeholder=" "
                                 aria-label="Expires At"
                                 min={new Date().toISOString().slice(0, 16)}
+                                defaultValue={new Date().toISOString().slice(0, 16)}
                                 onFocus={() => setFocusedField('expiresAt')}
                                 onBlur={() => setFocusedField(null)}
                                 {...register('expiresAt', { required: 'Expiration time is required' })}
