@@ -26,6 +26,10 @@ const AddFoodPage = () => {
     const hasSubmittedRef = useRef(false);
     const toast = useToast();
 
+    // Cache the minimum acceptable time on mount
+    const currentLocalDateTime = useMemo(() => getLocalDateTime(), []);
+
+
     // Intersection Observer Steps
     const [activeStep, setActiveStep] = useState(1);
     const step1Ref = useRef(null);
@@ -592,8 +596,8 @@ const AddFoodPage = () => {
                                 type="datetime-local"
                                 placeholder=" "
                                 aria-label="Expires At"
-                                min={getLocalDateTime()}
-                                defaultValue={getLocalDateTime()}
+                                min={currentLocalDateTime}
+                                defaultValue={currentLocalDateTime}
                                 onFocus={() => setFocusedField('expiresAt')}
                                 onBlur={() => setFocusedField(null)}
                                 {...register('expiresAt', { required: 'Expiration time is required' })}
