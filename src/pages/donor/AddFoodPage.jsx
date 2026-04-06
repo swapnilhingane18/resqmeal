@@ -466,10 +466,11 @@ const AddFoodPage = () => {
                 <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-8 relative pb-32">
 
                     {/* --- SECTION 1: Food Details --- */}
-                    <div id="step-1" ref={step1Ref} className="bg-white rounded-2xl border border-stone-200 p-5 sm:p-8 space-y-4 shadow-sm hover:shadow-md transition-shadow scroll-mt-36">
-                        <h2 className="text-base font-bold text-stone-900 uppercase tracking-widest flex items-center gap-2 mb-6 border-b border-stone-100 pb-3">
-                            <span className="text-xl">🥗</span> Food Details
-                        </h2>
+                    <div id="step-1" ref={step1Ref} className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white/60 p-6 sm:p-10 space-y-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-500 scroll-mt-36">
+                        <div className="flex items-center gap-4 mb-8 border-b border-stone-200/60 pb-5">
+                            <div className="w-12 h-12 bg-white rounded-2xl shadow-sm border border-stone-100 flex items-center justify-center text-2xl group-hover:scale-105 transition-transform">🥗</div>
+                            <h2 className="text-xl font-extrabold text-stone-800 tracking-tight">Food Details</h2>
+                        </div>
 
                         <div className="relative group">
                             <select
@@ -479,7 +480,7 @@ const AddFoodPage = () => {
                                 onFocus={() => setFocusedField('type')}
                                 onBlur={() => setFocusedField(null)}
                                 {...register('type', { required: 'Food type is required' })}
-                                className={`peer block w-full rounded-xl border appearance-none px-4 pb-2 pt-6 text-sm text-stone-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all ${errors.type ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-stone-200 focus:border-emerald-500 hover:border-stone-300'}`}
+                                className={`peer block w-full h-14 rounded-2xl border appearance-none px-4 pb-2 pt-6 text-sm text-stone-800 bg-stone-50/50 hover:bg-stone-50 focus:bg-white focus:outline-none focus:border-emerald-500 focus:ring-[3px] focus:ring-emerald-500/20 transition-all duration-300 ${errors.type ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-stone-200 focus:border-emerald-500 hover:border-emerald-400'}`}
                             >
                                 <option value="" disabled hidden></option>
                                 <option value="cooked">Cooked Food</option>
@@ -487,7 +488,7 @@ const AddFoodPage = () => {
                                 <option value="packaged">Packaged Food</option>
                                 <option value="prepared">Prepared Meals</option>
                             </select>
-                            <label htmlFor="type" className={`absolute left-4 top-2 text-xs font-medium transition-all pointer-events-none ${errors.type ? 'text-red-500' : 'text-stone-500 peer-focus:text-emerald-600'} ${!type && 'peer-focus:text-xs top-4 text-sm peer-focus:top-2'}`}>
+                            <label htmlFor="type" className={`absolute left-4 top-2 text-[11px] font-bold uppercase tracking-wider transition-all duration-300 pointer-events-none ${errors.type ? 'text-red-500' : 'text-stone-500 peer-focus:text-emerald-600'} ${!type && 'peer-focus:text-xs top-4 text-sm peer-focus:top-2'}`}>
                                 Food Category <span className="text-stone-300 font-normal">*</span>
                             </label>
                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-stone-400 group-hover:text-emerald-600 transition-colors">▾</div>
@@ -513,9 +514,9 @@ const AddFoodPage = () => {
                                         required: 'Quantity is required',
                                         min: { value: 0.1, message: 'Quantity must be > 0' }
                                     })}
-                                    className={`peer block w-full rounded-xl border px-4 pb-2 pt-6 text-sm text-stone-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all ${errors.quantity ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-stone-200 focus:border-emerald-500 hover:border-stone-300'}`}
+                                    className={`peer block w-full h-14 rounded-2xl border px-4 pb-2 pt-6 text-sm text-stone-800 bg-stone-50/50 hover:bg-stone-50 focus:bg-white focus:outline-none focus:border-emerald-500 focus:ring-[3px] focus:ring-emerald-500/20 transition-all duration-300 ${errors.quantity ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-stone-200 focus:border-emerald-500 hover:border-emerald-400'}`}
                                 />
-                                <label htmlFor="quantity" className={`absolute left-4 top-4 z-10 origin-[0] -translate-y-2 scale-75 transform text-sm duration-200 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:-translate-y-2 peer-focus:scale-75 pointer-events-none font-medium ${errors.quantity ? 'text-red-500' : 'text-stone-500 peer-focus:text-emerald-600'}`}>
+                                <label htmlFor="quantity" className={`absolute left-4 top-4 z-10 origin-[0] -translate-y-2.5 scale-75 transform text-[13px] tracking-wide duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:-translate-y-2.5 peer-focus:scale-75 pointer-events-none font-semibold ${errors.quantity ? 'text-red-500' : 'text-stone-500 peer-focus:text-emerald-600'}`}>
                                     Amount <span className="text-stone-300 font-normal">*</span>
                                 </label>
                                 {errors.quantity && <p className="text-red-500 text-xs mt-1 absolute -bottom-5 left-1 font-medium">{errors.quantity.message}</p>}
@@ -531,7 +532,7 @@ const AddFoodPage = () => {
                                     onFocus={() => setFocusedField('unit')}
                                     onBlur={() => setFocusedField(null)}
                                     {...register('unit', { required: 'Unit is required' })}
-                                    className={`peer block w-full rounded-xl border appearance-none px-4 pb-2 pt-6 text-sm text-stone-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all ${errors.unit ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-stone-200 focus:border-emerald-500 hover:border-stone-300'}`}
+                                    className={`peer block w-full h-14 rounded-2xl border appearance-none px-4 pb-2 pt-6 text-sm text-stone-800 bg-stone-50/50 hover:bg-stone-50 focus:bg-white focus:outline-none focus:border-emerald-500 focus:ring-[3px] focus:ring-emerald-500/20 transition-all duration-300 ${errors.unit ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-stone-200 focus:border-emerald-500 hover:border-emerald-400'}`}
                                 >
                                     <option value="" disabled hidden></option>
                                     <option value="kg">Kilograms (kg)</option>
@@ -539,7 +540,7 @@ const AddFoodPage = () => {
                                     <option value="boxes">Boxes/Packets</option>
                                     <option value="liters">Liters</option>
                                 </select>
-                                <label htmlFor="unit" className={`absolute left-4 top-2 text-xs font-medium transition-all pointer-events-none ${errors.unit ? 'text-red-500' : 'text-stone-500 peer-focus:text-emerald-600'} ${!unit && 'top-4 text-sm peer-focus:top-2 peer-focus:text-xs'}`}>
+                                <label htmlFor="unit" className={`absolute left-4 top-2 text-[11px] font-bold uppercase tracking-wider transition-all duration-300 pointer-events-none ${errors.unit ? 'text-red-500' : 'text-stone-500 peer-focus:text-emerald-600'} ${!unit && 'top-4 text-sm peer-focus:top-2 peer-focus:text-xs'}`}>
                                     Measurement <span className="text-stone-300 font-normal">*</span>
                                 </label>
                                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-stone-400 group-hover:text-emerald-600 transition-colors">▾</div>
@@ -559,9 +560,9 @@ const AddFoodPage = () => {
                                     required: 'Description is required',
                                     minLength: { value: 3, message: 'Min 3 characters' }
                                 })}
-                                className={`peer block w-full rounded-xl border px-4 pb-2 pt-6 text-sm text-stone-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all resize-none ${errors.description ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-stone-200 focus:border-emerald-500 hover:border-stone-300'}`}
+                                className={`peer block w-full h-14 rounded-2xl border px-4 pb-2 pt-6 text-sm text-stone-800 bg-stone-50/50 hover:bg-stone-50 focus:bg-white focus:outline-none focus:border-emerald-500 focus:ring-[3px] focus:ring-emerald-500/20 transition-all duration-300 resize-none ${errors.description ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-stone-200 focus:border-emerald-500 hover:border-emerald-400'}`}
                             />
-                            <label htmlFor="description" className={`absolute left-4 top-4 z-10 origin-[0] -translate-y-2 scale-75 transform text-sm duration-200 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:-translate-y-2 peer-focus:scale-75 pointer-events-none font-medium ${errors.description ? 'text-red-500' : 'text-stone-500 peer-focus:text-emerald-600'}`}>
+                            <label htmlFor="description" className={`absolute left-4 top-4 z-10 origin-[0] -translate-y-2.5 scale-75 transform text-[13px] tracking-wide duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:-translate-y-2.5 peer-focus:scale-75 pointer-events-none font-semibold ${errors.description ? 'text-red-500' : 'text-stone-500 peer-focus:text-emerald-600'}`}>
                                 What's in the donation? <span className="text-stone-300 font-normal">*</span>
                             </label>
                             {errors.description && <p className="text-red-500 text-xs mt-1 absolute -bottom-5 left-1 font-medium">{errors.description.message}</p>}
@@ -573,10 +574,11 @@ const AddFoodPage = () => {
                     </div>
 
                     {/* --- SECTION 2: Expiry & Location --- */}
-                    <div id="step-2" ref={step2Ref} className="bg-white rounded-2xl border border-stone-200 p-5 sm:p-8 space-y-4 shadow-sm hover:shadow-md transition-shadow scroll-mt-36">
-                        <h2 className="text-base font-bold text-stone-900 uppercase tracking-widest flex items-center gap-2 mb-6 border-b border-stone-100 pb-3">
-                            <span className="text-xl">⏳</span> Expiry & Location
-                        </h2>
+                    <div id="step-2" ref={step2Ref} className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white/60 p-6 sm:p-10 space-y-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-500 scroll-mt-36">
+                        <div className="flex items-center gap-4 mb-8 border-b border-stone-200/60 pb-5">
+                            <div className="w-12 h-12 bg-white rounded-2xl shadow-sm border border-stone-100 flex items-center justify-center text-2xl group-hover:scale-105 transition-transform">⏳</div>
+                            <h2 className="text-xl font-extrabold text-stone-800 tracking-tight">Expiry & Location</h2>
+                        </div>
 
                         <div className="relative group">
                             <input
@@ -587,9 +589,9 @@ const AddFoodPage = () => {
                                 onFocus={() => setFocusedField('expiresAt')}
                                 onBlur={() => setFocusedField(null)}
                                 {...register('expiresAt', { required: 'Expiration time is required' })}
-                                className={`peer block w-full md:w-2/3 rounded-xl border px-4 pb-2 pt-6 text-sm text-stone-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all ${errors.expiresAt ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-stone-200 focus:border-emerald-500 hover:border-stone-300'}`}
+                                className={`peer block w-full md:w-2/3 h-14 rounded-2xl border px-4 pb-2 pt-6 text-sm text-stone-800 bg-stone-50/50 hover:bg-stone-50 focus:bg-white focus:outline-none focus:border-emerald-500 focus:ring-[3px] focus:ring-emerald-500/20 transition-all duration-300 ${errors.expiresAt ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-stone-200 focus:border-emerald-500 hover:border-emerald-400'}`}
                             />
-                            <label htmlFor="expiresAt" className={`absolute left-4 top-2 text-xs font-medium transition-all pointer-events-none ${errors.expiresAt ? 'text-red-500' : 'text-stone-500 peer-focus:text-emerald-600'}`}>
+                            <label htmlFor="expiresAt" className={`absolute left-4 top-2 text-[11px] font-bold uppercase tracking-wider transition-all duration-300 pointer-events-none ${errors.expiresAt ? 'text-red-500' : 'text-stone-500 peer-focus:text-emerald-600'}`}>
                                 Best Before Deadline <span className="text-stone-300 font-normal">*</span>
                             </label>
                             {errors.expiresAt && <p className="text-red-500 text-xs mt-1 absolute -bottom-5 left-1 font-medium">{errors.expiresAt.message}</p>}
@@ -609,7 +611,7 @@ const AddFoodPage = () => {
                                     aria-label="Use Current Location"
                                     onClick={handleUseCurrentLocation}
                                     disabled={isLocating}
-                                    className="flex-1 py-3.5 text-sm font-bold border-stone-200 text-stone-700 hover:bg-stone-50 hover:text-emerald-700 hover:border-emerald-200 shadow-sm transition-all focus:ring-2 focus:ring-offset-1 focus:ring-emerald-500"
+                                    className="flex-1 py-4 text-sm font-bold border-stone-200 text-stone-700 bg-white rounded-xl hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 shadow-sm hover:shadow-md transition-all duration-300 focus:outline-none focus:ring-[3px] focus:ring-emerald-500/20"
                                 >
                                     {isLocating ? (
                                         <span className="flex items-center justify-center gap-2">
@@ -623,7 +625,7 @@ const AddFoodPage = () => {
                                     variant="outline"
                                     aria-label="Choose on Map"
                                     onClick={() => setIsMapOpen(true)}
-                                    className="flex-1 py-3.5 text-sm font-bold border-stone-200 text-stone-700 hover:bg-stone-50 hover:border-amber-200 hover:text-amber-700 shadow-sm transition-all focus:ring-2 focus:ring-offset-1 focus:ring-amber-500"
+                                    className="flex-1 py-4 text-sm font-bold border-stone-200 text-stone-700 bg-white rounded-xl hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 shadow-sm hover:shadow-md transition-all duration-300 focus:outline-none focus:ring-[3px] focus:ring-amber-500/20"
                                 >
                                     🗺️ Interactive Map
                                 </Button>
@@ -646,10 +648,11 @@ const AddFoodPage = () => {
                     </div>
 
                     {/* --- SECTION 3: Contact Info --- */}
-                    <div id="step-3" ref={step3Ref} className="bg-white rounded-2xl border border-stone-200 p-5 sm:p-8 space-y-4 shadow-sm hover:shadow-md transition-shadow scroll-mt-36">
-                        <h2 className="text-base font-bold text-stone-900 uppercase tracking-widest flex items-center gap-2 mb-6 border-b border-stone-100 pb-3">
-                            <span className="text-xl">📞</span> Contact Identity
-                        </h2>
+                    <div id="step-3" ref={step3Ref} className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white/60 p-6 sm:p-10 space-y-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-500 scroll-mt-36">
+                        <div className="flex items-center gap-4 mb-8 border-b border-stone-200/60 pb-5">
+                            <div className="w-12 h-12 bg-white rounded-2xl shadow-sm border border-stone-100 flex items-center justify-center text-2xl group-hover:scale-105 transition-transform">📞</div>
+                            <h2 className="text-xl font-extrabold text-stone-800 tracking-tight">Contact Identity</h2>
+                        </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div className="relative group">
@@ -658,9 +661,9 @@ const AddFoodPage = () => {
                                     placeholder=" "
                                     aria-label="Name"
                                     {...register('donorName', { required: 'Name is required' })}
-                                    className={`peer block w-full rounded-xl border px-4 pb-2 pt-6 text-sm text-stone-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all ${errors.donorName ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-stone-200 focus:border-emerald-500 hover:border-stone-300'}`}
+                                    className={`peer block w-full h-14 rounded-2xl border px-4 pb-2 pt-6 text-sm text-stone-800 bg-stone-50/50 hover:bg-stone-50 focus:bg-white focus:outline-none focus:border-emerald-500 focus:ring-[3px] focus:ring-emerald-500/20 transition-all duration-300 ${errors.donorName ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-stone-200 focus:border-emerald-500 hover:border-emerald-400'}`}
                                 />
-                                <label htmlFor="donorName" className={`absolute left-4 top-4 z-10 origin-[0] -translate-y-2 scale-75 transform text-sm duration-200 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:-translate-y-2 peer-focus:scale-75 pointer-events-none font-medium ${errors.donorName ? 'text-red-500' : 'text-stone-500 peer-focus:text-emerald-600'}`}>
+                                <label htmlFor="donorName" className={`absolute left-4 top-4 z-10 origin-[0] -translate-y-2.5 scale-75 transform text-[13px] tracking-wide duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:-translate-y-2.5 peer-focus:scale-75 pointer-events-none font-semibold ${errors.donorName ? 'text-red-500' : 'text-stone-500 peer-focus:text-emerald-600'}`}>
                                     Lister Name <span className="text-stone-300 font-normal">*</span>
                                 </label>
                                 {errors.donorName && <p className="text-red-500 text-xs mt-1 absolute -bottom-5 left-1 font-medium">{errors.donorName.message}</p>}
@@ -676,9 +679,9 @@ const AddFoodPage = () => {
                                         required: 'Phone number is required',
                                         pattern: { value: /^[0-9+\-\s()]+$/, message: 'Invalid phone format' }
                                     })}
-                                    className={`peer block w-full rounded-xl border px-4 pb-2 pt-6 text-sm text-stone-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all ${errors.donorContact ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-stone-200 focus:border-emerald-500 hover:border-stone-300'}`}
+                                    className={`peer block w-full h-14 rounded-2xl border px-4 pb-2 pt-6 text-sm text-stone-800 bg-stone-50/50 hover:bg-stone-50 focus:bg-white focus:outline-none focus:border-emerald-500 focus:ring-[3px] focus:ring-emerald-500/20 transition-all duration-300 ${errors.donorContact ? 'border-red-300 focus:border-red-500 bg-red-50/30' : 'border-stone-200 focus:border-emerald-500 hover:border-emerald-400'}`}
                                 />
-                                <label htmlFor="donorContact" className={`absolute left-4 top-4 z-10 origin-[0] -translate-y-2 scale-75 transform text-sm duration-200 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:-translate-y-2 peer-focus:scale-75 pointer-events-none font-medium ${errors.donorContact ? 'text-red-500' : 'text-stone-500 peer-focus:text-emerald-600'}`}>
+                                <label htmlFor="donorContact" className={`absolute left-4 top-4 z-10 origin-[0] -translate-y-2.5 scale-75 transform text-[13px] tracking-wide duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:-translate-y-2.5 peer-focus:scale-75 pointer-events-none font-semibold ${errors.donorContact ? 'text-red-500' : 'text-stone-500 peer-focus:text-emerald-600'}`}>
                                     Direct Phone <span className="text-stone-300 font-normal">*</span>
                                 </label>
                                 {errors.donorContact && <p className="text-red-500 text-xs mt-1 absolute -bottom-5 left-1 font-medium">{errors.donorContact.message}</p>}
@@ -694,9 +697,9 @@ const AddFoodPage = () => {
                                 {...register('donorEmail', {
                                     pattern: { value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, message: 'Invalid email' }
                                 })}
-                                className={`peer block w-full md:w-1/2 rounded-xl border px-4 pb-2 pt-6 text-sm text-stone-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all ${errors.donorEmail ? 'border-red-300 focus:border-red-500' : 'border-stone-200 focus:border-emerald-500 hover:border-stone-300'}`}
+                                className={`peer block w-full md:w-1/2 h-14 rounded-2xl border px-4 pb-2 pt-6 text-sm text-stone-800 bg-stone-50/50 hover:bg-stone-50 focus:bg-white focus:outline-none focus:border-emerald-500 focus:ring-[3px] focus:ring-emerald-500/20 transition-all duration-300 ${errors.donorEmail ? 'border-red-300 focus:border-red-500' : 'border-stone-200 focus:border-emerald-500 hover:border-emerald-400'}`}
                             />
-                            <label htmlFor="donorEmail" className={`absolute left-4 top-4 z-10 origin-[0] -translate-y-2 scale-75 transform text-sm duration-200 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:-translate-y-2 peer-focus:scale-75 pointer-events-none font-medium ${errors.donorEmail ? 'text-red-500' : 'text-stone-500 peer-focus:text-emerald-600'}`}>
+                            <label htmlFor="donorEmail" className={`absolute left-4 top-4 z-10 origin-[0] -translate-y-2.5 scale-75 transform text-[13px] tracking-wide duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:-translate-y-2.5 peer-focus:scale-75 pointer-events-none font-semibold ${errors.donorEmail ? 'text-red-500' : 'text-stone-500 peer-focus:text-emerald-600'}`}>
                                 Communication Email <span className="text-stone-400 font-normal opacity-60">(Optional)</span>
                             </label>
                             {errors.donorEmail && <p className="text-red-500 text-xs mt-1 absolute -bottom-5 left-1 font-medium">{errors.donorEmail.message}</p>}
@@ -709,9 +712,9 @@ const AddFoodPage = () => {
                                 placeholder=" "
                                 aria-label="Additional Notes"
                                 {...register('notes')}
-                                className="peer block w-full rounded-xl border px-4 pb-2 pt-6 text-sm text-stone-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all border-stone-200 resize-none hover:border-stone-300"
+                                className="peer block w-full h-14 rounded-2xl border px-4 pb-2 pt-6 text-sm text-stone-800 bg-stone-50/50 hover:bg-stone-50 focus:bg-white focus:outline-none focus:border-emerald-500 focus:ring-[3px] focus:ring-emerald-500/20 transition-all duration-300 border-stone-200 resize-none hover:border-emerald-400"
                             />
-                            <label htmlFor="notes" className="absolute left-4 top-4 z-10 origin-[0] -translate-y-2 scale-75 transform text-sm duration-200 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:-translate-y-2 peer-focus:scale-75 pointer-events-none font-medium text-stone-500 peer-focus:text-emerald-600">
+                            <label htmlFor="notes" className="absolute left-4 top-4 z-10 origin-[0] -translate-y-2.5 scale-75 transform text-[13px] tracking-wide duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:-translate-y-2.5 peer-focus:scale-75 pointer-events-none font-semibold text-stone-500 peer-focus:text-emerald-600">
                                 Rider / Access Instructions <span className="text-stone-400 font-normal opacity-60">(Optional)</span>
                             </label>
                         </div>
@@ -799,7 +802,7 @@ const AddFoodPage = () => {
                         <button
                             type="button"
                             onClick={() => setShowLoginModal(false)}
-                            className="flex-1 py-3 rounded-xl border border-stone-200 text-sm font-semibold text-stone-600 hover:bg-stone-50 hover:border-stone-300 transition-all focus:outline-none focus:ring-2 focus:ring-stone-300"
+                            className="flex-1 py-3 rounded-xl border border-stone-200 text-sm font-semibold text-stone-600 hover:bg-stone-50 hover:border-emerald-400 transition-all focus:outline-none focus:ring-2 focus:ring-stone-300"
                         >
                             Cancel
                         </button>

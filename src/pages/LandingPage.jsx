@@ -46,7 +46,7 @@ const LandingPage = () => {
 
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center w-full max-w-sm sm:max-w-none mx-auto">
                     <Button
-                        onClick={() => navigate('/register')}
+                        onClick={() => navigate('/donor/add-food')}
                         size="lg"
                         className="bg-neutral-900 hover:bg-neutral-800 text-white shadow-md hover:shadow-lg px-8 py-3 sm:py-4 text-base sm:text-lg w-full sm:w-auto transform hover:scale-105 transition-all duration-200"
                     >
