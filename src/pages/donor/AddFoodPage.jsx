@@ -270,8 +270,8 @@ const AddFoodPage = () => {
             });
             setSelectedAddress("");
 
-            toast.success("Ready for your next donation 🚀", {
-                duration: 2500,
+            toast.success("Donation published successfully! 🎉", {
+                duration: 3000,
                 style: {
                     borderRadius: "8px",
                     background: "#ecfdf5",
@@ -289,6 +289,7 @@ const AddFoodPage = () => {
     useEffect(() => {
         if (!autoSubmitPending) return;
         setAutoSubmitPending(false);
+        setLoading(true);
         const timer = setTimeout(() => {
             handleSubmit(onSubmit)();
         }, 400);
