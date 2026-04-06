@@ -17,6 +17,7 @@ const AddFoodPage = () => {
     const [assignmentResult, setAssignmentResult] = useState(null);
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [autoSubmitPending, setAutoSubmitPending] = useState(false);
+    const hasAutoSubmittedRef = useRef(false);
     const toast = useToast();
 
     // Intersection Observer Steps
@@ -287,7 +288,8 @@ const AddFoodPage = () => {
 
     // Auto-submit after pending donation data is restored
     useEffect(() => {
-        if (!autoSubmitPending) return;
+        if (!autoSubmitPending || hasAutoSubmittedRef.current) return;
+        hasAutoSubmittedRef.current = true;
         setAutoSubmitPending(false);
         setLoading(true);
         const timer = setTimeout(() => {
