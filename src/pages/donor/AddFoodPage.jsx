@@ -10,6 +10,12 @@ import Modal from '../../components/ui/Modal';
 // Lazy loading the map modal for performance
 const MapPickerModal = lazy(() => import('../../components/MapPickerModal.jsx'));
 
+const getLocalDateTime = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 16);
+};
+
 const AddFoodPage = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -586,8 +592,8 @@ const AddFoodPage = () => {
                                 type="datetime-local"
                                 placeholder=" "
                                 aria-label="Expires At"
-                                min={new Date().toISOString().slice(0, 16)}
-                                defaultValue={new Date().toISOString().slice(0, 16)}
+                                min={getLocalDateTime()}
+                                defaultValue={getLocalDateTime()}
                                 onFocus={() => setFocusedField('expiresAt')}
                                 onBlur={() => setFocusedField(null)}
                                 {...register('expiresAt', { required: 'Expiration time is required' })}
