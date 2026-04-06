@@ -55,6 +55,8 @@ module.exports = {
         'slideInRight': 'slideInRight 0.3s ease-out',
         'slideInUp': 'slideInUp 0.3s ease-out',
         'fadeIn': 'fadeIn 0.2s ease-in',
+        'fade-in': 'fadeIn 0.2s ease-in',
+        'scale-in': 'scaleIn 0.25s ease-out',
       },
       keyframes: {
         slideInRight: {
@@ -68,6 +70,10 @@ module.exports = {
         fadeIn: {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
+        },
+        scaleIn: {
+          '0%': { transform: 'scale(0.92)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
         },
       },
     },

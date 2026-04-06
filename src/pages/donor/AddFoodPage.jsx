@@ -5,6 +5,7 @@ import { foodAPI } from '../../api';
 import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../hooks/useAuth';
 import Button from '../../components/ui/Button';
+import Modal from '../../components/ui/Modal';
 
 // Lazy loading the map modal for performance
 const MapPickerModal = lazy(() => import('../../components/MapPickerModal.jsx'));
@@ -14,6 +15,7 @@ const AddFoodPage = () => {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [assignmentResult, setAssignmentResult] = useState(null);
+    const [showLoginModal, setShowLoginModal] = useState(false);
     const toast = useToast();
 
     // Intersection Observer Steps
@@ -148,10 +150,9 @@ const AddFoodPage = () => {
     const onSubmit = async (data) => {
         setShowErrorSummary(false); // Clear errors UI if any
 
-        // Login check — redirect unauthenticated users
+        // Login check — show modal for unauthenticated users
         if (!user) {
-            toast.error("Please log in before submitting a donation");
-            navigate('/login');
+            setShowLoginModal(true);
             return;
         }
 
@@ -735,6 +736,37 @@ const AddFoodPage = () => {
                     />
                 )}
             </Suspense>
+
+            {/* Login Required Modal */}
+            <Modal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)}>
+                <div className="p-8 text-center space-y-5">
+                    <div className="mx-auto w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center text-3xl">
+                        🔒
+                    </div>
+                    <h3 className="text-xl font-bold text-stone-900 tracking-tight">
+                        Login Required to Donate Food
+                    </h3>
+                    <p className="text-sm text-stone-500 leading-relaxed max-w-xs mx-auto">
+                        Please sign in to your account before submitting a donation. Your form data will be preserved.
+                    </p>
+                    <div className="flex gap-3 pt-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowLoginModal(false)}
+                            className="flex-1 py-3 rounded-xl border border-stone-200 text-sm font-semibold text-stone-600 hover:bg-stone-50 hover:border-stone-300 transition-all focus:outline-none focus:ring-2 focus:ring-stone-300"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => navigate('/login')}
+                            className="flex-1 py-3 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 shadow-md hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                        >
+                            Login →
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };
