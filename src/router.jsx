@@ -57,9 +57,7 @@ export const router = createBrowserRouter([
                 path: 'donor/add-food',
                 element: (
                     <SuspenseWrapper>
-                        <ProtectedRoute allowedRoles={['DONOR', 'ADMIN']}>
-                            <AddFoodPage />
-                        </ProtectedRoute>
+                        <AddFoodPage />
                     </SuspenseWrapper>
                 ),
             },
@@ -67,9 +65,7 @@ export const router = createBrowserRouter([
                 path: 'ngo/feed',
                 element: (
                     <SuspenseWrapper>
-                        <ProtectedRoute allowedRoles={['NGO', 'ADMIN']}>
-                            <NGOFeedPage />
-                        </ProtectedRoute>
+                        <NGOFeedPage />
                     </SuspenseWrapper>
                 ),
             },
