@@ -272,7 +272,7 @@ const AddFoodPage = () => {
                 description: "",
                 lat: "",
                 lng: "",
-                expiresAt: "",
+                expiresAt: getLocalDateTime(),
                 foodExpiresAt: "",
                 notes: "",
                 donorName: formValues.donorName,
