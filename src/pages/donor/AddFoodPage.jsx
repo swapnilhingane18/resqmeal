@@ -16,6 +16,7 @@ const AddFoodPage = () => {
     const [loading, setLoading] = useState(false);
     const [assignmentResult, setAssignmentResult] = useState(null);
     const [showLoginModal, setShowLoginModal] = useState(false);
+    const [autoSubmitPending, setAutoSubmitPending] = useState(false);
     const toast = useToast();
 
     // Intersection Observer Steps
@@ -91,6 +92,33 @@ const AddFoodPage = () => {
         }
     }, [reset, user]);
 
+    // --- Resume Pending Donation After Login ---
+    useEffect(() => {
+        if (!user) return;
+        const pending = localStorage.getItem('pendingDonation');
+        if (!pending) return;
+
+        try {
+            const savedData = JSON.parse(pending);
+            // Restore all form fields
+            Object.entries(savedData).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '') {
+                    setValue(key, value, { shouldValidate: true });
+                }
+            });
+            // Restore address display if location was saved
+            if (savedData._selectedAddress) {
+                setSelectedAddress(savedData._selectedAddress);
+            }
+            localStorage.removeItem('pendingDonation');
+            setAutoSubmitPending(true);
+            toast.success('Draft restored — submitting your donation...', { duration: 2000 });
+        } catch (err) {
+            console.error('Failed to restore pending donation', err);
+            localStorage.removeItem('pendingDonation');
+        }
+    }, [user, setValue, toast]);
+
     // Debounced Save on Change (Only Contact Fields)
     useEffect(() => {
         if (!donorName && !donorContact && !formValues.donorEmail) return;
@@ -150,8 +178,11 @@ const AddFoodPage = () => {
     const onSubmit = async (data) => {
         setShowErrorSummary(false); // Clear errors UI if any
 
-        // Login check — show modal for unauthenticated users
+        // Login check — save form data and show modal for unauthenticated users
         if (!user) {
+            const pendingData = { ...data };
+            if (selectedAddress) pendingData._selectedAddress = selectedAddress;
+            localStorage.setItem('pendingDonation', JSON.stringify(pendingData));
             setShowLoginModal(true);
             return;
         }
@@ -208,6 +239,7 @@ const AddFoodPage = () => {
 
             // Clean auto-save on success (only the old food one if it exists, contact stays)
             localStorage.removeItem("resqmeal_draft_food");
+            localStorage.removeItem("pendingDonation");
             setSaveStatus('');
 
             setAssignmentResult(response.assignment || { status: 'pending' });
@@ -252,6 +284,17 @@ const AddFoodPage = () => {
             setLoading(false);
         }
     };
+
+    // Auto-submit after pending donation data is restored
+    useEffect(() => {
+        if (!autoSubmitPending) return;
+        setAutoSubmitPending(false);
+        const timer = setTimeout(() => {
+            handleSubmit(onSubmit)();
+        }, 400);
+        return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoSubmitPending]);
 
     // Form Error Handler
     const onError = (errors) => {
